@@ -1,0 +1,12 @@
+---
+# Deploy MISP threat intelligence platform (future phase)
+# This playbook is a placeholder for Phase 8: Threat Intelligence Integration
+# MISP requires a separate VM — see architecture/vm-specs.md for future VM spec
+
+- name: Deploy MISP (placeholder — Phase 8)
+  hosts: siem
+  gather_facts: false
+  tasks:
+    - name: Placeholder — MISP not yet deployed
+      ansible.builtin.debug:
+        msg: "MISP deployment is planned for Phase 8. See STATUS.md."

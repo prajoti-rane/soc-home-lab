@@ -1,0 +1,14 @@
+---
+# Deploy Wazuh Manager on the SIEM node
+# Run: ansible-playbook playbooks/wazuh-manager.yml
+
+- name: Deploy Wazuh Manager
+  hosts: siem
+  become: true
+  roles:
+    - role: wazuh
+  vars:
+    wazuh_manager_ip: "192.168.64.10"
+    wazuh_api_port: 55000
+    wazuh_registration_port: 1515
+    wazuh_log_level: 1

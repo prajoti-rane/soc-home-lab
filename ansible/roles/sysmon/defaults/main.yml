@@ -1,0 +1,3 @@
+---
+sysmon_config: "sysmonconfig-export.xml"
+sysmon_version: "15"

@@ -1,0 +1,13 @@
+---
+# Configure the Windows victim endpoint
+# Run: ansible-playbook playbooks/windows-victim.yml
+# Prerequisites: WinRM must be enabled on Windows VM (see runbook/07-kali-setup.md)
+
+- name: Configure Windows victim endpoint
+  hosts: endpoints
+  roles:
+    - role: sysmon
+  vars:
+    sysmon_config: "sysmonconfig-export.xml"
+    wazuh_agent_manager_ip: "192.168.64.10"
+    wazuh_agent_name: "victim-windows"

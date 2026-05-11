@@ -1,0 +1,38 @@
+---
+name: Ansible Lint
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'ansible/**'
+      - '.github/workflows/ansible-lint.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'ansible/**'
+
+jobs:
+  ansible-lint:
+    name: Lint Ansible playbooks and roles
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install ansible-lint
+        run: pip install ansible-lint
+
+      - name: Install Ansible collections
+        run: ansible-galaxy collection install -r ansible/requirements.yml
+
+      - name: Run ansible-lint
+        run: ansible-lint ansible/
+        env:
+          ANSIBLE_FORCE_COLOR: '1'

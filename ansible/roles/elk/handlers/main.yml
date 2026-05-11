@@ -1,0 +1,15 @@
+---
+- name: Restart elasticsearch
+  ansible.builtin.service:
+    name: elasticsearch
+    state: restarted
+
+- name: Restart kibana
+  ansible.builtin.service:
+    name: kibana
+    state: restarted
+
+- name: Restart logstash
+  ansible.builtin.service:
+    name: logstash
+    state: restarted

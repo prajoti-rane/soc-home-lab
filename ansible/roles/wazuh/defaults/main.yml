@@ -1,0 +1,8 @@
+---
+wazuh_manager_ip: "192.168.64.10"
+wazuh_api_port: 55000
+wazuh_registration_port: 1515
+wazuh_event_port: 1514
+wazuh_log_level: 1
+wazuh_email_alerts: false
+wazuh_active_response: true

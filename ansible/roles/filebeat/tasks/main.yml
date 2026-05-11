@@ -1,0 +1,24 @@
+---
+- name: Install Filebeat
+  ansible.builtin.apt:
+    name: filebeat
+    state: present
+
+- name: Deploy Filebeat config
+  ansible.builtin.template:
+    src: filebeat.yml.j2
+    dest: /etc/filebeat/filebeat.yml
+    owner: root
+    group: root
+    mode: "0600"
+  notify: Restart filebeat
+
+- name: Enable Wazuh Filebeat module
+  ansible.builtin.command: filebeat modules enable wazuh
+  changed_when: false
+
+- name: Enable and start Filebeat
+  ansible.builtin.service:
+    name: filebeat
+    state: started
+    enabled: true

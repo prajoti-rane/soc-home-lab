@@ -1,0 +1,47 @@
+---
+- name: Harden sshd configuration
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: "{{ item.regexp }}"
+    line: "{{ item.line }}"
+  loop:
+    - {regexp: "^#?PermitRootLogin", line: "PermitRootLogin no"}
+    - {regexp: "^#?PasswordAuthentication", line: "PasswordAuthentication no"}
+    - {regexp: "^#?X11Forwarding", line: "X11Forwarding no"}
+    - {regexp: "^#?MaxAuthTries", line: "MaxAuthTries 3"}
+    - {regexp: "^#?ClientAliveInterval", line: "ClientAliveInterval 300"}
+    - {regexp: "^#?ClientAliveCountMax", line: "ClientAliveCountMax 2"}
+  notify: Restart sshd
+
+- name: Configure fail2ban for SSH
+  ansible.builtin.copy:
+    content: |
+      [sshd]
+      enabled = true
+      port = ssh
+      filter = sshd
+      logpath = /var/log/auth.log
+      maxretry = 5
+      bantime = 3600
+    dest: /etc/fail2ban/jail.d/sshd.conf
+    mode: "0644"
+  notify: Restart fail2ban
+
+- name: Enable and start fail2ban
+  ansible.builtin.service:
+    name: fail2ban
+    state: started
+    enabled: true
+
+- name: Set kernel sysctl hardening parameters
+  ansible.posix.sysctl:
+    name: "{{ item.key }}"
+    value: "{{ item.value }}"
+    state: present
+    sysctl_set: true
+  loop:
+    - {key: "net.ipv4.conf.all.rp_filter", value: "1"}
+    - {key: "net.ipv4.conf.default.rp_filter", value: "1"}
+    - {key: "net.ipv4.icmp_echo_ignore_broadcasts", value: "1"}
+    - {key: "net.ipv4.conf.all.accept_source_route", value: "0"}
+    - {key: "kernel.dmesg_restrict", value: "1"}

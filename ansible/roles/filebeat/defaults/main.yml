@@ -1,0 +1,4 @@
+---
+filebeat_logstash_host: "127.0.0.1"
+filebeat_logstash_port: 5044
+filebeat_wazuh_alerts_path: "/var/ossec/logs/alerts/alerts.json"

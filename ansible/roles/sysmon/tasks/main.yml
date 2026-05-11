@@ -1,0 +1,32 @@
+---
+- name: Create tools directory
+  ansible.windows.win_file:
+    path: C:\Tools\Sysmon
+    state: directory
+
+- name: Download Sysmon zip
+  ansible.windows.win_get_url:
+    url: "https://download.sysinternals.com/files/Sysmon.zip"
+    dest: C:\Tools\Sysmon.zip
+
+- name: Extract Sysmon
+  community.windows.win_unzip:
+    src: C:\Tools\Sysmon.zip
+    dest: C:\Tools\Sysmon
+
+- name: Copy Sysmon config
+  ansible.windows.win_copy:
+    src: "{{ sysmon_config }}"
+    dest: C:\Tools\Sysmon\sysmonconfig.xml
+
+- name: Install Sysmon with config
+  ansible.windows.win_command: >
+    C:\Tools\Sysmon\Sysmon64.exe -accepteula -i C:\Tools\Sysmon\sysmonconfig.xml
+  args:
+    creates: C:\Windows\Sysmon64.exe
+
+- name: Ensure Sysmon service is running
+  ansible.windows.win_service:
+    name: Sysmon64
+    state: started
+    start_mode: auto

@@ -1,0 +1,41 @@
+---
+- name: Add Wazuh GPG key
+  ansible.builtin.apt_key:
+    url: https://packages.wazuh.com/key/GPG-KEY-WAZUH
+    state: present
+
+- name: Add Wazuh apt repository
+  ansible.builtin.apt_repository:
+    repo: "deb https://packages.wazuh.com/4.x/apt/ stable main"
+    state: present
+    filename: wazuh
+
+- name: Install Wazuh manager
+  ansible.builtin.apt:
+    name: wazuh-manager
+    state: present
+    update_cache: true
+
+- name: Deploy ossec.conf template
+  ansible.builtin.template:
+    src: ossec.conf.j2
+    dest: /var/ossec/etc/ossec.conf
+    owner: root
+    group: wazuh
+    mode: "0640"
+  notify: Restart wazuh-manager
+
+- name: Enable and start Wazuh manager
+  ansible.builtin.service:
+    name: wazuh-manager
+    state: started
+    enabled: true
+
+- name: Open Wazuh ports in UFW
+  community.general.ufw:
+    rule: allow
+    port: "{{ item }}"
+  loop:
+    - "1514"
+    - "1515"
+    - "55000"

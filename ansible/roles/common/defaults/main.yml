@@ -1,0 +1,17 @@
+---
+common_timezone: "UTC"
+common_packages:
+  - curl
+  - wget
+  - git
+  - vim
+  - htop
+  - net-tools
+  - unzip
+  - python3
+  - python3-pip
+  - ca-certificates
+  - gnupg
+  - lsb-release
+  - fail2ban
+  - auditd

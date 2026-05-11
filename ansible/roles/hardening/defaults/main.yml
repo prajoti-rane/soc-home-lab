@@ -1,0 +1,4 @@
+---
+hardening_ssh_port: 22
+hardening_disable_root_login: true
+hardening_disable_password_auth: true

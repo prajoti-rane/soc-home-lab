@@ -1,0 +1,26 @@
+---
+# Master playbook — provisions the full SOC lab stack
+# Run: ansible-playbook playbooks/site.yml
+
+- name: Bootstrap all hosts (common)
+  hosts: all
+  roles:
+    - role: common
+
+- name: Deploy Wazuh + ELK stack on SIEM node
+  hosts: siem
+  roles:
+    - role: wazuh
+    - role: elk
+    - role: filebeat
+    - role: hardening
+
+- name: Configure Windows endpoint
+  hosts: endpoints
+  roles:
+    - role: sysmon
+
+- name: Set up Kali attacker
+  hosts: attacker
+  roles:
+    - role: common
