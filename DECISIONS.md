@@ -254,3 +254,74 @@ This file records non-obvious architectural decisions made during the design and
 **Decision:** Test case files are YAML (not Markdown) and include inline JSON log sample payloads that can be directly piped to `wazuh-logtest`.
 
 **Rationale:** YAML test files are machine-parseable by `validate-detections.sh`, enabling automated validation without a running Wazuh agent. Inline log samples eliminate the need to search for sample events; a reviewer can paste the JSON directly into wazuh-logtest and see the rule fire. This is more valuable for portfolio demonstration than narrative-only test case documents.
+
+---
+
+## Decision 17: Sliver over Metasploit as Primary C2 Framework
+
+**Date:** 2026-05-11
+**Status:** Final
+
+**Decision:** Use Sliver C2 for all attack simulation content, not Metasploit/Meterpreter.
+
+**Rationale:** Meterpreter is so heavily signatured by AV and EDR tools that detections built against it are nearly useless for validating production-grade security controls. Sliver generates realistic mTLS/HTTPS/DNS C2 traffic used by real APTs (documented in CISA AA23-025A 2023). Detections that catch Sliver traffic are directly operationally relevant. Additionally, Sliver ships native ARM64 Windows implants, which is a hard requirement for our Windows 11 ARM64 victim VM — Metasploit's Windows payloads do not have ARM64-native builds.
+
+---
+
+## Decision 18: Attack Scenarios as Standalone Markdown (Not Scripts)
+
+**Date:** 2026-05-11
+**Status:** Final
+
+**Decision:** Write attack scenarios as step-by-step Markdown documents rather than fully automated shell scripts.
+
+**Alternatives considered:**
+
+| Option | Pros | Cons |
+|--------|------|------|
+| **Markdown step-by-step** (chosen) | Reviewer can read and understand each step; operator must consciously execute each command; no accidental automation; good for interview walk-through | Slower to execute than a script |
+| Fully automated attack script | Fast to run; reproducible | Dangerous — a single script could chain destructive commands; bad for portfolio (looks like an attack tool rather than a security engineering demo) |
+| Ansible playbook | Idempotent; modular | Unnecessary complexity for one-time scenarios; attack playbooks feel jarring alongside provisioning playbooks |
+
+**Rationale:** In a security engineering interview, the ability to explain each step of the kill chain matters more than automation speed. Markdown scenarios are readable artifacts that demonstrate depth of understanding. They also enforce the safety requirement that each step requires conscious operator action.
+
+---
+
+## Decision 19: runner.ps1 Extension (Not runner.sh)
+
+**Date:** 2026-05-11
+**Status:** Final
+
+**Decision:** The Atomic Red Team runner is saved as `runner.ps1` (PowerShell), not `runner.sh` (Bash).
+
+**Rationale:** The task specification described "runner.sh" but stated it was a "PowerShell script that runs on Windows victim." PowerShell scripts use the `.ps1` extension; running a `.sh` file on Windows requires WSL or Cygwin, adding unnecessary complexity. The `.ps1` extension makes the script directly executable via `.\runner.ps1` in any Windows PowerShell session. This naming is consistent with ART's own PowerShell module conventions.
+
+---
+
+## Decision 20: ISO SHA256 Hashes as Placeholders in download-isos.sh
+
+**Date:** 2026-05-11
+**Status:** Final
+
+**Decision:** The `scripts/download-isos.sh` script uses placeholder SHA256 values for the ISO checksums rather than hardcoding the current release hashes.
+
+**Rationale:** ISO checksums change with every new release (Ubuntu 24.04.1 → 24.04.2 → etc.). Hardcoding a specific hash that becomes outdated on the next point release would cause false verification failures and confuse users. The script prominently documents where to obtain the current hash (official Ubuntu and Kali release pages) and warns users to verify before use. This follows the same pattern as Ansible's package installation (which always installs "latest") — the code stays correct over time while the user verifies currency at execution time.
+
+---
+
+## Decision 21: Sysmon Config — SwiftOnSecurity Base + Lab Customizations
+
+**Date:** 2026-05-11
+**Status:** Final
+
+**Decision:** Use SwiftOnSecurity's `sysmonconfig-export.xml` as the base configuration, with lab-specific customizations added programmatically by `generate-sysmon-config.sh`.
+
+**Alternatives considered:**
+
+| Option | Pros | Cons |
+|--------|------|------|
+| **SwiftOnSecurity + custom script** (chosen) | Industry-standard base; maintained by community; lab additions are traceable in git diff | Requires re-running script after SwiftOnSecurity updates |
+| Olaf Hartong's Sysmon Modular | More granular per-technique control | Heavier config; harder to explain in an interview |
+| Fully custom config | Total control | Maintenance burden; likely to miss important event types |
+
+**Rationale:** SwiftOnSecurity's config is the most widely-recognized Sysmon configuration in the security community and is referenced in countless detection engineering guides. Using it as a base signals familiarity with community standards. The script approach (rather than committing a static file) means the config can be regenerated with the latest SwiftOnSecurity version at any time, keeping the lab current with newly discovered attacker techniques.

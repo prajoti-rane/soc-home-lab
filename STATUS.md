@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-05-11 (Phase 3 complete)
+Last updated: 2026-05-11 (Phase 4 complete)
 
 ## Phase Overview
 
@@ -9,8 +9,8 @@ Last updated: 2026-05-11 (Phase 3 complete)
 | Phase 1 | ✅ Complete | Repository Bootstrap + Architecture Documentation |
 | Phase 2 | ✅ Complete | Ansible Automation |
 | Phase 3 | ✅ Complete | Detection Rules |
-| Phase 4 | ⏳ Next | Attack Simulation Scripts |
-| Phase 5 | 🔜 Planned | Incident Report Templates |
+| Phase 4 | ✅ Complete | Attack Simulation Scripts |
+| Phase 5 | ⏳ Next | Incident Report Templates |
 | Phase 6 | 🔜 Planned | Runbook (Human-Executable Steps) |
 | Phase 7 | 🔜 Planned | Documentation Polish + CI/CD |
 
@@ -83,19 +83,28 @@ Last updated: 2026-05-11 (Phase 3 complete)
 
 ---
 
-## Phase 4: Attack Simulation Scripts — ⏳ NEXT
+## Phase 4: Attack Simulation Scripts — ✅ COMPLETE
 
 **Goal:** Documented, repeatable attack scenarios with Sliver C2 and Atomic Red Team.
 
-**Planned work:**
-- [ ] Sliver listener + implant generation guide
-- [ ] Atomic Red Team test selection (T1059, T1055, T1003, T1070, T1547)
-- [ ] Full kill chain scenario: recon → initial access → persistence → credential access → lateral movement → C2 → defense evasion
-- [ ] Expected alert list for each attack step
+**Delivered:**
+- [x] `attack-simulation/sliver/README.md` — Complete Sliver operator guide (ARM64-specific): server setup, HTTPS listener, implant generation, C2 operations (shell/upload/download/screenshot/LSASS), Kibana correlation table
+- [x] `attack-simulation/sliver/setup-sliver.sh` — ARM64-aware installer: downloads server+client binaries, creates systemd service, initializes PKI, prints operator next-steps
+- [x] `attack-simulation/atomic-red-team/README.md` — ART installation, per-technique execution guide, detection coverage map, expected alert latency table, Kibana correlation queries
+- [x] `attack-simulation/atomic-red-team/runner.ps1` — PowerShell test runner with DryRun/TechniquesOnly/SkipCleanup params, per-test prereq checking, 30s Wazuh wait, Defender re-enable guard, results log
+- [x] `attack-simulation/atomic-red-team/test-plan.md` — Full table: 8 rules × technique × test number × admin requirement × cleanup command; detailed per-test procedures; pass/fail criteria
+- [x] `attack-simulation/attack-scenarios/01-initial-access-c2.md` — Sliver C2 implant delivery + beaconing (T1071.001, T1059.001)
+- [x] `attack-simulation/attack-scenarios/02-credential-dumping.md` — LSASS dump via ART/Sliver/procdump (T1003.001)
+- [x] `attack-simulation/attack-scenarios/03-lateral-movement.md` — SSH brute force + PsExec (T1110.001, T1021.002)
+- [x] `attack-simulation/attack-scenarios/04-persistence.md` — Scheduled task + Defender tamper (T1053.005, T1562.001)
+- [x] `attack-simulation/attack-scenarios/05-full-kill-chain.md` — Capstone: all 8 rule groups fire; interview demo scenario
+- [x] `scripts/download-isos.sh` — Ubuntu + Kali ARM64 ISO downloader with SHA256 verify; Windows 11 UUPDump manual instructions
+- [x] `scripts/generate-sysmon-config.sh` — Downloads SwiftOnSecurity config, applies lab customizations, validates XML, installs to ansible/roles/sysmon/files/
+- [x] DECISIONS.md updated (D17–D21: Sliver rationale, Markdown scenarios, .ps1 extension, ISO placeholders, Sysmon config strategy)
 
 ---
 
-## Phase 5: Incident Report Templates — 🔜 PLANNED
+## Phase 5: Incident Report Templates — ⏳ NEXT
 
 **Goal:** One complete incident report from a Sliver C2 kill chain execution.
 
