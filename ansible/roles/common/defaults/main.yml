@@ -1,5 +1,8 @@
 ---
 common_timezone: "UTC"
+common_ssh_port: 22
+soc_lab_dir: "/opt/soc-lab"
+
 common_packages:
   - curl
   - wget
@@ -13,5 +16,7 @@ common_packages:
   - ca-certificates
   - gnupg
   - lsb-release
+  - jq
   - fail2ban
   - auditd
+  - apt-transport-https

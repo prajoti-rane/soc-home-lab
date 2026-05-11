@@ -1,0 +1,62 @@
+# Filebeat Configuration — Linux (Wazuh Manager)
+# Managed by Ansible — do not edit manually.
+# Template: ansible/roles/filebeat/templates/filebeat-linux.yml.j2
+
+filebeat.inputs:
+  # Wazuh alerts JSON stream
+  - type: log
+    enabled: true
+    paths:
+      - "{{ filebeat_wazuh_alerts_path }}"
+    fields:
+      source: wazuh_alerts
+      node_name: "{{ inventory_hostname }}"
+    fields_under_root: false
+    scan_frequency: 10s
+    json.keys_under_root: true
+    json.add_error_key: true
+
+  # Wazuh archives (full event stream)
+  - type: log
+    enabled: true
+    paths:
+      - "{{ filebeat_wazuh_archives_path }}"
+    fields:
+      source: wazuh_archives
+      node_name: "{{ inventory_hostname }}"
+    fields_under_root: false
+    scan_frequency: 10s
+    json.keys_under_root: true
+    json.add_error_key: true
+
+  # System syslog
+  - type: log
+    enabled: true
+    paths:
+      - /var/log/syslog
+      - /var/log/auth.log
+    fields:
+      source: syslog
+    scan_frequency: 30s
+
+output.logstash:
+  hosts: ["{{ filebeat_logstash_host }}:{{ filebeat_logstash_port }}"]
+  # Increase bulk for high-volume Wazuh alerts
+  bulk_max_size: 2048
+  worker: 4
+
+processors:
+  - add_host_metadata: ~
+  - add_fields:
+      target: lab
+      fields:
+        environment: soc-lab
+        role: siem
+
+logging.level: warning
+logging.to_files: true
+logging.files:
+  path: /var/log/filebeat
+  name: filebeat
+  keepfiles: 7
+  permissions: "0640"

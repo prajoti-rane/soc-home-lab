@@ -1,13 +1,16 @@
 ---
-# Configure the Windows victim endpoint
+# Configure Windows 11 ARM64 victim endpoint (192.168.64.20)
+# Prerequisites:
+#   - WinRM enabled (run in PowerShell as Admin):
+#       Enable-PSRemoting -Force
+#       winrm set winrm/config/service/auth '@{Basic="true"}'
+#       winrm set winrm/config/service '@{AllowUnencrypted="true"}'
+#   - pip install pywinrm on the Ansible control host
 # Run: ansible-playbook playbooks/windows-victim.yml
-# Prerequisites: WinRM must be enabled on Windows VM (see runbook/07-kali-setup.md)
 
-- name: Configure Windows victim endpoint
-  hosts: endpoints
+- name: Configure Windows 11 victim endpoint
+  hosts: victims
+
   roles:
     - role: sysmon
-  vars:
-    sysmon_config: "sysmonconfig-export.xml"
-    wazuh_agent_manager_ip: "192.168.64.10"
-    wazuh_agent_name: "victim-windows"
+    - role: filebeat

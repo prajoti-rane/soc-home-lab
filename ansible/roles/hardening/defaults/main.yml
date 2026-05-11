@@ -1,4 +1,10 @@
 ---
 hardening_ssh_port: 22
+hardening_ssh_service_name: "ssh"
 hardening_disable_root_login: true
 hardening_disable_password_auth: true
+hardening_disable_usb_storage: false
+
+hardening_fail2ban_maxretry: 5
+hardening_fail2ban_bantime: 3600
+hardening_fail2ban_findtime: 600

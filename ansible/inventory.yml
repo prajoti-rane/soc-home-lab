@@ -1,29 +1,29 @@
 ---
 all:
   vars:
-    ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
+    ansible_ssh_common_args: "-o StrictHostKeyChecking=no"
 
   children:
     siem:
       hosts:
         wazuh-manager:
           ansible_host: 192.168.64.10
-          ansible_user: ubuntu
+          ansible_user: soc
           ansible_ssh_private_key_file: ~/.ssh/soc-lab
 
-    endpoints:
+    victims:
       hosts:
         victim-windows:
           ansible_host: 192.168.64.20
-          ansible_user: Administrator
+          ansible_user: SOCAdmin
           ansible_connection: winrm
           ansible_winrm_transport: basic
           ansible_winrm_server_cert_validation: ignore
           ansible_port: 5985
 
-    attacker:
+    attackers:
       hosts:
         kali-attacker:
           ansible_host: 192.168.64.30
-          ansible_user: kali
+          ansible_user: attacker
           ansible_ssh_private_key_file: ~/.ssh/soc-lab

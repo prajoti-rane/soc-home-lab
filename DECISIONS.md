@@ -139,3 +139,56 @@ This file records non-obvious architectural decisions made during the design and
 **Rationale:** This is a portfolio project. Public visibility allows FAANG security hiring managers and recruiters to review the work directly. All credentials, keys, and sensitive configuration are excluded via `.gitignore` and Ansible vault. No real infrastructure IPs or credentials are committed. The attack simulation tools (Sliver, ART) are documented as references, not deployed binaries.
 
 **Risk mitigation:** Pre-commit hooks (to be added in Phase 7) will scan for accidental secret commits using `truffleHog` or `git-secrets`.
+
+---
+
+## Decision 8: Role Variable Naming — Semantic Prefix over Role Prefix
+
+**Date:** 2026-05-11  
+**Status:** Final
+
+**Decision:** Use semantically meaningful variable prefixes (`elasticsearch_`, `kibana_`, `logstash_`) within the `elk` role rather than the role-name prefix (`elk_elasticsearch_`, `elk_kibana_`).
+
+**Rationale:** The ansible-lint `var-naming[no-role-prefix]` rule requires role variables to be prefixed with the role name. However, `elk_elasticsearch_heap_size` is redundant — the `elasticsearch_` prefix already scopes the variable. The Ansible community convention for widely-adopted roles (e.g., `geerlingguy.elasticsearch`) uses the service name as prefix. This rule is suppressed in `.ansible-lint` with a `skip_list` entry.
+
+---
+
+## Decision 9: ansible-lint `name[play]` Suppressed for `import_playbook`
+
+**Date:** 2026-05-11  
+**Status:** Final
+
+**Decision:** Suppress `name[play]` in `.ansible-lint`.
+
+**Rationale:** The `site.yml` master playbook uses `import_playbook` directives which cannot carry a `name:` attribute — they inherit names from the imported playbooks. ansible-lint 26.x incorrectly flags these as unnamed plays. The rule is skipped globally since all actual plays within the imported playbooks are named.
+
+---
+
+## Decision 10: Windows Sysmon Binary — Sysmon64a.exe (ARM64 Native)
+
+**Date:** 2026-05-11  
+**Status:** Final
+
+**Decision:** Use `Sysmon64a.exe` (ARM64-native) instead of `Sysmon64.exe` (x86_64) on the Windows 11 ARM64 victim VM.
+
+**Alternatives considered:**
+
+| Option | Pros | Cons |
+|--------|------|------|
+| `Sysmon64a.exe` (chosen) | Native ARM64 — runs at hardware speed; no emulation | Requires ARM64 Sysmon (ships in the same zip as of Sysmon 14+) |
+| `Sysmon64.exe` (x86_64) | Works via WOW64 emulation on ARM64 | ~10–20% CPU overhead; potential event volume impact |
+
+**Rationale:** Since the entire lab is ARM64-native, using the native Sysmon binary reduces CPU overhead. The Sysinternals `Sysmon.zip` includes both `Sysmon64.exe` (x64) and `Sysmon64a.exe` (ARM64) as of Sysmon 14.x. The service name for the ARM64 binary is `Sysmon64a` (not `Sysmon64`).
+
+---
+
+## Decision 11: Filebeat on Windows — x86_64 Binary under WOW64
+
+**Date:** 2026-05-11  
+**Status:** Final
+
+**Decision:** Use Filebeat x86_64 Windows binary on the ARM64 Windows victim VM (no native ARM64 Filebeat binary for Windows exists).
+
+**Rationale:** Elastic does not ship a native ARM64 Filebeat binary for Windows as of Filebeat 8.x. The x86_64 binary runs under Windows 11 ARM64's built-in WOW64 (Windows on Windows 64-bit) x86_64 emulation layer, which is hardware-accelerated on Apple Silicon. Performance impact is acceptable for the low event volume of a single-VM lab.
+
+**Future:** If Elastic ships native ARM64 Windows binaries, update `filebeat_windows_download_url` in `ansible/roles/filebeat/defaults/main.yml`.

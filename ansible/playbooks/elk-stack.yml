@@ -1,15 +1,15 @@
 ---
-# Deploy ELK stack on the SIEM node
+# Deploy ELK stack only (useful for iterating on ELK config without touching Wazuh)
 # Run: ansible-playbook playbooks/elk-stack.yml
 
-- name: Deploy Elasticsearch + Logstash + Kibana
+- name: Deploy Elasticsearch, Logstash, and Kibana
   hosts: siem
   become: true
+
+  pre_tasks:
+    - name: Gather facts
+      ansible.builtin.gather_facts:
+
   roles:
     - role: elk
     - role: filebeat
-  vars:
-    elasticsearch_heap_size: "4g"
-    kibana_host: "0.0.0.0"
-    kibana_port: 5601
-    logstash_beats_port: 5044

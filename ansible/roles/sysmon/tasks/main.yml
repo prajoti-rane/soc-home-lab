@@ -1,32 +1,45 @@
 ---
-- name: Create tools directory
+- name: Create Sysmon tools directory
   ansible.windows.win_file:
     path: C:\Tools\Sysmon
     state: directory
 
-- name: Download Sysmon zip
+- name: Download Sysmon zip from Sysinternals
   ansible.windows.win_get_url:
-    url: "https://download.sysinternals.com/files/Sysmon.zip"
+    url: "{{ sysmon_download_url }}"
     dest: C:\Tools\Sysmon.zip
 
-- name: Extract Sysmon
-  community.windows.win_unzip:
-    src: C:\Tools\Sysmon.zip
-    dest: C:\Tools\Sysmon
+- name: Extract Sysmon zip
+  ansible.windows.win_shell: >-
+    Expand-Archive -LiteralPath C:\Tools\Sysmon.zip -DestinationPath C:\Tools\Sysmon -Force
+  args:
+    creates: 'C:\Tools\Sysmon\Sysmon64a.exe'
+  changed_when: true
 
-- name: Copy Sysmon config
+- name: Copy Sysmon configuration file
   ansible.windows.win_copy:
-    src: "{{ sysmon_config }}"
+    src: "{{ sysmon_config_file }}"
     dest: C:\Tools\Sysmon\sysmonconfig.xml
 
-- name: Install Sysmon with config
-  ansible.windows.win_command: >
-    C:\Tools\Sysmon\Sysmon64.exe -accepteula -i C:\Tools\Sysmon\sysmonconfig.xml
+- name: Install Sysmon64a (ARM64 native binary) with configuration
+  ansible.windows.win_command: >-
+    C:\Tools\Sysmon\Sysmon64a.exe -accepteula -i C:\Tools\Sysmon\sysmonconfig.xml
   args:
-    creates: C:\Windows\Sysmon64.exe
+    creates: 'C:\Windows\Sysmon64a.exe'
+  changed_when: true
 
-- name: Ensure Sysmon service is running
+- name: Ensure Sysmon64a service is running
   ansible.windows.win_service:
-    name: Sysmon64
+    name: Sysmon64a
     state: started
     start_mode: auto
+
+- name: Increase Windows Sysmon event log channel size
+  ansible.windows.win_command: >-
+    wevtutil sl "Microsoft-Windows-Sysmon/Operational" /ms:{{ sysmon_log_size_bytes }}
+  changed_when: true
+
+- name: Increase Windows Security event log channel size
+  ansible.windows.win_command: >-
+    wevtutil sl Security /ms:{{ sysmon_security_log_size_bytes }}
+  changed_when: true

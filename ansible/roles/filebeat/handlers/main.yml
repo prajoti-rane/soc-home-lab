@@ -1,0 +1,6 @@
+---
+- name: Restart filebeat
+  ansible.builtin.service:
+    name: filebeat
+    state: restarted
+  when: ansible_system == 'Linux'

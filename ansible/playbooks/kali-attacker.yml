@@ -1,32 +1,91 @@
 ---
-# Set up Kali attacker VM with red team tools
+# Configure Kali Linux ARM64 attacker VM (192.168.64.30)
+# Prerequisites: Kali ARM64 installed, SSH key auth configured for user 'attacker'
 # Run: ansible-playbook playbooks/kali-attacker.yml
 
-- name: Configure Kali attacker
-  hosts: attacker
+- name: Configure Kali attacker with red team tooling
+  hosts: attackers
   become: true
-  tasks:
-    - name: Update apt cache
-      ansible.builtin.apt:
-        update_cache: true
-        cache_valid_time: 3600
 
-    - name: Install base tools
+  pre_tasks:
+    - name: Gather facts
+      ansible.builtin.gather_facts:
+
+  roles:
+    - role: common
+
+  tasks:
+    - name: Install Sliver C2 framework
+      block:
+        - name: Download Sliver installer script
+          ansible.builtin.get_url:
+            url: https://sliver.sh/install
+            dest: /tmp/sliver-install.sh
+            mode: "0755"
+
+        - name: Run Sliver installer
+          ansible.builtin.command:
+            cmd: /tmp/sliver-install.sh
+            creates: /usr/local/bin/sliver-server
+          changed_when: true
+          environment:
+            DEBIAN_FRONTEND: noninteractive
+
+        - name: Enable Sliver server service
+          ansible.builtin.service:
+            name: sliver
+            state: started
+            enabled: true
+          ignore_errors: true
+
+    - name: Install Atomic Red Team dependencies
+      block:
+        - name: Install PowerShell on Kali
+          ansible.builtin.apt:
+            name: powershell
+            state: present
+            update_cache: true
+
+        - name: Create tools directory for attacker user
+          ansible.builtin.file:
+            path: "/home/attacker/tools"
+            state: directory
+            owner: attacker
+            group: attacker
+            mode: "0755"
+
+        - name: Clone Atomic Red Team repository
+          ansible.builtin.git:
+            repo: "https://github.com/redcanaryco/atomic-red-team.git"
+            dest: "/home/attacker/tools/atomic-red-team"
+            depth: 1
+            version: master
+          become: true
+          become_user: attacker
+
+    - name: Install additional red team tools
       ansible.builtin.apt:
         name:
           - nmap
-          - metasploit-framework
-          - impacket-scripts
+          - gobuster
+          - enum4linux
           - crackmapexec
           - responder
-          - git
-          - curl
-          - python3-pip
+          - bloodhound
+          - impacket-scripts
+          - smbclient
+          - netcat-openbsd
+          - tcpdump
+          - wireshark-common
         state: present
+        update_cache: true
 
-    - name: Clone Atomic Red Team
-      ansible.builtin.git:
-        repo: "https://github.com/redcanaryco/atomic-red-team.git"
-        dest: "/home/kali/tools/atomic-red-team"
-        depth: 1
-      become_user: kali
+    - name: Install Python offensive libraries
+      ansible.builtin.pip:
+        name:
+          - impacket
+          - pwntools
+          - requests
+          - python-nmap
+        state: present
+        executable: pip3

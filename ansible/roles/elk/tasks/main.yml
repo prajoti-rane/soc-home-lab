@@ -1,12 +1,28 @@
 ---
-- name: Add Elastic GPG key
-  ansible.builtin.apt_key:
-    url: https://artifacts.elastic.co/GPG-KEY-elasticsearch
-    state: present
+# ── Elasticsearch ────────────────────────────────────────────────────────────
 
-- name: Add Elastic apt repository
+- name: Download Elastic GPG key
+  ansible.builtin.get_url:
+    url: https://artifacts.elastic.co/GPG-KEY-elasticsearch
+    dest: /tmp/GPG-KEY-elasticsearch
+    mode: "0644"
+
+- name: Dearmor Elastic GPG key into keyring
+  ansible.builtin.command:
+    cmd: gpg --dearmor --batch --yes -o /usr/share/keyrings/elastic.gpg /tmp/GPG-KEY-elasticsearch
+    creates: /usr/share/keyrings/elastic.gpg
+  changed_when: true
+
+- name: Set permissions on Elastic keyring file
+  ansible.builtin.file:
+    path: /usr/share/keyrings/elastic.gpg
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Add Elastic 8.x apt repository
   ansible.builtin.apt_repository:
-    repo: "deb https://artifacts.elastic.co/packages/8.x/apt stable main"
+    repo: "deb [signed-by=/usr/share/keyrings/elastic.gpg] https://artifacts.elastic.co/packages/8.x/apt stable main"
     state: present
     filename: elastic-8.x
 
@@ -16,7 +32,7 @@
     state: present
     update_cache: true
 
-- name: Deploy elasticsearch.yml
+- name: Deploy elasticsearch.yml from template
   ansible.builtin.template:
     src: elasticsearch.yml.j2
     dest: /etc/elasticsearch/elasticsearch.yml
@@ -25,12 +41,14 @@
     mode: "0660"
   notify: Restart elasticsearch
 
-- name: Set JVM heap options
+- name: Set Elasticsearch JVM heap size
   ansible.builtin.copy:
     content: |
       -Xms{{ elasticsearch_heap_size }}
       -Xmx{{ elasticsearch_heap_size }}
     dest: /etc/elasticsearch/jvm.options.d/heap.options
+    owner: root
+    group: elasticsearch
     mode: "0644"
   notify: Restart elasticsearch
 
@@ -40,10 +58,27 @@
     state: started
     enabled: true
 
+- name: Allow Elasticsearch REST API through UFW
+  community.general.ufw:
+    rule: allow
+    port: "{{ elasticsearch_http_port | string }}"
+    proto: tcp
+
+# ── Logstash ─────────────────────────────────────────────────────────────────
+
 - name: Install Logstash
   ansible.builtin.apt:
     name: logstash
     state: present
+
+- name: Deploy Logstash Wazuh pipeline from template
+  ansible.builtin.template:
+    src: logstash-pipeline.conf.j2
+    dest: /etc/logstash/conf.d/wazuh-pipeline.conf
+    owner: root
+    group: logstash
+    mode: "0640"
+  notify: Restart logstash
 
 - name: Enable and start Logstash
   ansible.builtin.service:
@@ -51,12 +86,20 @@
     state: started
     enabled: true
 
+- name: Allow Logstash Beats input through UFW
+  community.general.ufw:
+    rule: allow
+    port: "{{ logstash_beats_port | string }}"
+    proto: tcp
+
+# ── Kibana ────────────────────────────────────────────────────────────────────
+
 - name: Install Kibana
   ansible.builtin.apt:
     name: kibana
     state: present
 
-- name: Deploy kibana.yml
+- name: Deploy kibana.yml from template
   ansible.builtin.template:
     src: kibana.yml.j2
     dest: /etc/kibana/kibana.yml
@@ -71,8 +114,26 @@
     state: started
     enabled: true
 
-- name: Allow Kibana through UFW
+- name: Allow Kibana dashboard through UFW
   community.general.ufw:
     rule: allow
-    port: "5601"
+    port: "{{ kibana_port | string }}"
     proto: tcp
+
+# ── Verification ──────────────────────────────────────────────────────────────
+
+- name: Wait for Elasticsearch to become available
+  ansible.builtin.wait_for:
+    host: 127.0.0.1
+    port: "{{ elasticsearch_http_port }}"
+    delay: 10
+    timeout: 120
+
+- name: Verify Elasticsearch cluster health
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ elasticsearch_http_port }}/_cluster/health"
+    method: GET
+    status_code: 200
+  register: es_health
+  changed_when: false
+  failed_when: es_health.json.status not in ['green', 'yellow']

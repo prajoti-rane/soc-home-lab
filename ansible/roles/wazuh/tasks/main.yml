@@ -1,41 +1,87 @@
 ---
-- name: Add Wazuh GPG key
-  ansible.builtin.apt_key:
+- name: Download Wazuh GPG key
+  ansible.builtin.get_url:
     url: https://packages.wazuh.com/key/GPG-KEY-WAZUH
-    state: present
+    dest: /tmp/GPG-KEY-WAZUH
+    mode: "0644"
+
+- name: Dearmor Wazuh GPG key into keyring
+  ansible.builtin.command:
+    cmd: gpg --dearmor --batch --yes -o /usr/share/keyrings/wazuh.gpg /tmp/GPG-KEY-WAZUH
+    creates: /usr/share/keyrings/wazuh.gpg
+  changed_when: true
+
+- name: Set permissions on Wazuh keyring file
+  ansible.builtin.file:
+    path: /usr/share/keyrings/wazuh.gpg
+    owner: root
+    group: root
+    mode: "0644"
 
 - name: Add Wazuh apt repository
   ansible.builtin.apt_repository:
-    repo: "deb https://packages.wazuh.com/4.x/apt/ stable main"
+    repo: "deb [signed-by=/usr/share/keyrings/wazuh.gpg] https://packages.wazuh.com/4.x/apt/ stable main"
     state: present
     filename: wazuh
 
-- name: Install Wazuh manager
+- name: Install Wazuh manager package
   ansible.builtin.apt:
     name: wazuh-manager
     state: present
     update_cache: true
 
-- name: Deploy ossec.conf template
+- name: Deploy ossec.conf from template
   ansible.builtin.template:
     src: ossec.conf.j2
     dest: /var/ossec/etc/ossec.conf
     owner: root
     group: wazuh
     mode: "0640"
+    validate: "/var/ossec/bin/wazuh-manager --validate-config %s"
+  notify: Restart wazuh-manager
+  ignore_errors: true
+
+- name: Deploy placeholder local_rules.xml
+  ansible.builtin.copy:
+    src: local_rules.xml
+    dest: /var/ossec/etc/rules/local_rules.xml
+    owner: root
+    group: wazuh
+    mode: "0640"
   notify: Restart wazuh-manager
 
-- name: Enable and start Wazuh manager
+- name: Enable and start wazuh-manager service
   ansible.builtin.service:
     name: wazuh-manager
     state: started
     enabled: true
 
-- name: Open Wazuh ports in UFW
+- name: Allow Wazuh agent event port (UDP 1514) through UFW
   community.general.ufw:
     rule: allow
-    port: "{{ item }}"
-  loop:
-    - "1514"
-    - "1515"
-    - "55000"
+    port: "{{ wazuh_event_port | string }}"
+    proto: udp
+
+- name: Allow Wazuh agent registration port (TCP 1515) through UFW
+  community.general.ufw:
+    rule: allow
+    port: "{{ wazuh_registration_port | string }}"
+    proto: tcp
+
+- name: Allow Wazuh API port (TCP 55000) through UFW
+  community.general.ufw:
+    rule: allow
+    port: "{{ wazuh_api_port | string }}"
+    proto: tcp
+
+- name: Verify wazuh-manager service is running
+  ansible.builtin.service_facts:
+  register: service_state
+
+- name: Assert wazuh-manager is active
+  ansible.builtin.assert:
+    that:
+      - "'wazuh-manager.service' in service_state.ansible_facts.services"
+      - "service_state.ansible_facts.services['wazuh-manager.service'].state == 'running'"
+    fail_msg: "wazuh-manager service is not running"
+    success_msg: "wazuh-manager service is running"

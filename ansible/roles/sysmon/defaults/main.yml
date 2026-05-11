@@ -1,3 +1,5 @@
 ---
-sysmon_config: "sysmonconfig-export.xml"
-sysmon_version: "15"
+sysmon_download_url: "https://download.sysinternals.com/files/Sysmon.zip"
+sysmon_config_file: "sysmonconfig-export.xml"
+sysmon_log_size_bytes: 67108864
+sysmon_security_log_size_bytes: 134217728

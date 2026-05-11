@@ -7,8 +7,8 @@ Last updated: 2026-05-11
 | Phase | Status | Description |
 |-------|--------|-------------|
 | Phase 1 | ✅ Complete | Repository Bootstrap + Architecture Documentation |
-| Phase 2 | ⏳ Next | Ansible Automation |
-| Phase 3 | 🔜 Planned | Detection Rules |
+| Phase 2 | ✅ Complete | Ansible Automation |
+| Phase 3 | ⏳ Next | Detection Rules |
 | Phase 4 | 🔜 Planned | Attack Simulation Scripts |
 | Phase 5 | 🔜 Planned | Incident Report Templates |
 | Phase 6 | 🔜 Planned | Runbook (Human-Executable Steps) |
@@ -37,26 +37,30 @@ Last updated: 2026-05-11
 
 ---
 
-## Phase 2: Ansible Automation — ⏳ NEXT
+## Phase 2: Ansible Automation — ✅ COMPLETE
 
 **Goal:** Fully automated provisioning of wazuh-manager, victim-windows, and kali-attacker VMs from a single `ansible-playbook site.yml` command.
 
-**Planned work:**
-- [ ] `roles/common` — base OS hardening, hostname, NTP, fail2ban
-- [ ] `roles/wazuh` — Wazuh manager install + ossec.conf template
-- [ ] `roles/elk` — Elasticsearch + Logstash + Kibana install + ILM policy
-- [ ] `roles/sysmon` — WinRM-based Sysmon + SwiftOnSecurity config deploy
-- [ ] `roles/filebeat` — Filebeat install + Wazuh pipeline config
-- [ ] `roles/hardening` — UFW rules, sshd hardening, auditd
-- [ ] `ansible/playbooks/site.yml` — orchestrates all roles in dependency order
-- [ ] Ansible vault for credential management
-- [ ] WinRM setup on Windows (required before Ansible can manage it)
-
-**Estimated time:** 4–6 hours
+**Delivered:**
+- [x] `ansible/inventory.yml` — 3 hosts (siem, victims, attackers groups), WinRM for Windows
+- [x] `ansible/ansible.cfg` — optimized settings (pipelining, fact caching, yaml callback)
+- [x] `ansible/requirements.yml` — ansible.windows, ansible.posix, community.general
+- [x] `ansible/.ansible-lint` — basic profile config, skip list for non-actionable rules
+- [x] `roles/common` — apt update, base packages (jq, chrony NTP, fail2ban, auditd), hostname, /etc/hosts, UFW
+- [x] `roles/wazuh` — GPG key (dearmored), apt repo, wazuh-manager install, `ossec.conf.j2` template, `local_rules.xml` placeholder, UFW ports 1514/1515/55000, service verify
+- [x] `roles/elk` — Elasticsearch 8.x (2g heap, xpack.security=false), Logstash pipeline (`logstash-pipeline.conf.j2`), Kibana, UFW ports, ES health check
+- [x] `roles/sysmon` — Windows ARM64 via WinRM, `Sysmon64a.exe` (native ARM64), SwiftOnSecurity `sysmonconfig-export.xml`, event log size increase
+- [x] `roles/filebeat` — OS-conditional (Linux: apt + Wazuh pipeline; Windows: x64 WOW64 binary), templates `filebeat-linux.yml.j2` + `filebeat-windows.yml.j2`
+- [x] `roles/hardening` — sshd 8-parameter lockdown, fail2ban, sysctl 8 parameters, USB storage disable option
+- [x] `playbooks/site.yml` — import_playbook orchestration (wazuh-manager → windows-victim → kali-attacker)
+- [x] `playbooks/kali-attacker.yml` — Sliver C2 installer, ART clone, 12 offensive tools, pip3 libs
+- [x] Templates: `ossec.conf.j2`, `elasticsearch.yml.j2`, `kibana.yml.j2`, `logstash-pipeline.conf.j2`, `filebeat-linux.yml.j2`, `filebeat-windows.yml.j2`
+- [x] **ansible-lint passes: 0 failures, production profile** (run: `cd ansible && ansible-lint playbooks/ roles/`)
+- [x] DECISIONS.md updated (decisions 8–11)
 
 ---
 
-## Phase 3: Detection Rules — 🔜 PLANNED
+## Phase 3: Detection Rules — ⏳ NEXT
 
 **Goal:** Custom Wazuh rules and Sigma signatures covering the 10 MITRE ATT&CK techniques listed in the README, with validated true-positive rates.
 

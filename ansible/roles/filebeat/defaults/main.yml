@@ -1,4 +1,8 @@
 ---
-filebeat_logstash_host: "127.0.0.1"
+filebeat_logstash_host: "192.168.64.10"
 filebeat_logstash_port: 5044
 filebeat_wazuh_alerts_path: "/var/ossec/logs/alerts/alerts.json"
+filebeat_wazuh_archives_path: "/var/ossec/logs/archives/archives.json"
+
+# Windows download — x64 binary works under WOW64 on Windows 11 ARM64
+filebeat_windows_download_url: "https://artifacts.elastic.co/downloads/beats/filebeat/filebeat-8.17.0-windows-x86_64.zip"

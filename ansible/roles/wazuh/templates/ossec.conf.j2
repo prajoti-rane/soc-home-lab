@@ -1,0 +1,157 @@
+<!-- Wazuh Manager Configuration
+     Managed by Ansible — do not edit manually.
+     Template: ansible/roles/wazuh/templates/ossec.conf.j2
+-->
+<ossec_config>
+
+  <global>
+    <jsonout_output>yes</jsonout_output>
+    <alerts_log>yes</alerts_log>
+    <logall>{{ 'yes' if wazuh_logall else 'no' }}</logall>
+    <logall_json>{{ 'yes' if wazuh_logall_json else 'no' }}</logall_json>
+    <email_notification>{{ 'yes' if wazuh_email_alerts else 'no' }}</email_notification>
+    <smtp_server>smtp.example.lab</smtp_server>
+    <email_from>wazuh@soc-lab.local</email_from>
+    <email_to>analyst@soc-lab.local</email_to>
+    <email_maxperhour>12</email_maxperhour>
+    <email_log_source>alerts.log</email_log_source>
+    <agents_disconnection_time>10m</agents_disconnection_time>
+    <agents_disconnection_alert_time>0</agents_disconnection_alert_time>
+    <update_check>no</update_check>
+  </global>
+
+  <alerts>
+    <log_alert_level>{{ wazuh_log_level }}</log_alert_level>
+    <email_alert_level>12</email_alert_level>
+  </alerts>
+
+  <!-- Manager listening for agent connections -->
+  <remote>
+    <connection>secure</connection>
+    <port>{{ wazuh_event_port }}</port>
+    <protocol>tcp</protocol>
+    <queue_size>131072</queue_size>
+  </remote>
+
+  <!-- Agent registration service -->
+  <auth>
+    <disabled>no</disabled>
+    <port>{{ wazuh_registration_port }}</port>
+    <use_source_ip>no</use_source_ip>
+    <purge>yes</purge>
+    <use_password>no</use_password>
+    <ciphers>HIGH:!ADH:!EXP:!MD5:!RC4:!3DES:!CAMELLIA:@STRENGTH</ciphers>
+    <ssl_verify_host>no</ssl_verify_host>
+    <ssl_manager_cert>/var/ossec/etc/sslmanager.cert</ssl_manager_cert>
+    <ssl_manager_key>/var/ossec/etc/sslmanager.key</ssl_manager_key>
+    <ssl_auto_negotiate>no</ssl_auto_negotiate>
+  </auth>
+
+  <!-- Active response -->
+  <active-response>
+    <disabled>{{ 'no' if wazuh_active_response else 'yes' }}</disabled>
+    <ca_store>/var/ossec/etc/wpk_root.pem</ca_store>
+    <ca_verification>yes</ca_verification>
+  </active-response>
+
+  <!-- Linux log collection on the manager itself -->
+  <localfile>
+    <log_format>syslog</log_format>
+    <location>/var/log/syslog</location>
+  </localfile>
+
+  <localfile>
+    <log_format>syslog</log_format>
+    <location>/var/log/auth.log</location>
+  </localfile>
+
+  <localfile>
+    <log_format>syslog</log_format>
+    <location>/var/log/dpkg.log</location>
+  </localfile>
+
+  <localfile>
+    <log_format>syslog</log_format>
+    <location>/var/ossec/logs/active-responses.log</location>
+  </localfile>
+
+  <!-- File integrity monitoring (FIM) on critical manager paths -->
+  <syscheck>
+    <disabled>no</disabled>
+    <frequency>43200</frequency>
+    <scan_on_start>yes</scan_on_start>
+    <alert_new_files>yes</alert_new_files>
+    <auto_ignore frequency="10" timeframe="3600">no</auto_ignore>
+
+    <!-- Monitor Wazuh rule changes -->
+    <directories check_all="yes" realtime="yes" report_changes="yes">/var/ossec/etc/rules</directories>
+    <directories check_all="yes" realtime="yes" report_changes="yes">/var/ossec/etc/decoders</directories>
+    <directories check_all="yes" realtime="yes">/var/ossec/etc</directories>
+
+    <!-- System binaries -->
+    <directories check_all="yes">/bin,/sbin,/usr/bin,/usr/sbin</directories>
+    <directories check_all="yes">/etc/passwd,/etc/shadow,/etc/group</directories>
+
+    <ignore>/proc</ignore>
+    <ignore>/sys</ignore>
+    <ignore>/dev</ignore>
+  </syscheck>
+
+  <!-- Rootcheck -->
+  <rootcheck>
+    <disabled>no</disabled>
+    <check_files>yes</check_files>
+    <check_trojans>yes</check_trojans>
+    <check_dev>yes</check_dev>
+    <check_sys>yes</check_sys>
+    <check_pids>yes</check_pids>
+    <check_ports>yes</check_ports>
+    <check_if>yes</check_if>
+    <frequency>43200</frequency>
+    <rootkit_files>/var/ossec/etc/shared/rootkit_files.txt</rootkit_files>
+    <rootkit_trojans>/var/ossec/etc/shared/rootkit_trojans.txt</rootkit_trojans>
+    <skip_nfs>yes</skip_nfs>
+  </rootcheck>
+
+  <!-- Vulnerability detection -->
+  <vulnerability-detector>
+    <enabled>no</enabled>
+    <interval>5m</interval>
+    <min_full_scan_interval>6h</min_full_scan_interval>
+    <run_on_start>yes</run_on_start>
+    <provider name="canonical">
+      <enabled>yes</enabled>
+      <os>focal</os>
+      <os>jammy</os>
+      <os>noble</os>
+      <update_interval>1h</update_interval>
+    </provider>
+  </vulnerability-detector>
+
+  <!-- Rule and decoder locations -->
+  <ruleset>
+    <decoder_dir>ruleset/decoders</decoder_dir>
+    <rule_dir>ruleset/rules</rule_dir>
+    <rule_exclude>0215-policy_rules.xml</rule_exclude>
+    <list>etc/lists/audit-keys</list>
+    <list>etc/lists/amazon/aws-eventnames</list>
+    <list>etc/lists/security-eventchannel</list>
+    <user_defined_rules>etc/rules/local_rules.xml</user_defined_rules>
+  </ruleset>
+
+  <!-- Cluster (single-node for this lab) -->
+  <cluster>
+    <name>{{ wazuh_cluster_name }}</name>
+    <node_name>{{ wazuh_node_name }}</node_name>
+    <node_type>master</node_type>
+    <key>{{ wazuh_cluster_key | default('soclabclusterkey1234567890123456') }}</key>
+    <port>1516</port>
+    <bind_addr>0.0.0.0</bind_addr>
+    <nodes>
+      <node>{{ wazuh_manager_ip }}</node>
+    </nodes>
+    <hidden>no</hidden>
+    <disabled>yes</disabled>
+  </cluster>
+
+</ossec_config>

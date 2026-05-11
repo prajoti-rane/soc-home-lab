@@ -1,9 +1,11 @@
 ---
-- name: Harden sshd configuration
+- name: Harden SSH daemon configuration
   ansible.builtin.lineinfile:
     path: /etc/ssh/sshd_config
     regexp: "{{ item.regexp }}"
     line: "{{ item.line }}"
+    state: present
+    backup: true
   loop:
     - {regexp: "^#?PermitRootLogin", line: "PermitRootLogin no"}
     - {regexp: "^#?PasswordAuthentication", line: "PasswordAuthentication no"}
@@ -11,19 +13,24 @@
     - {regexp: "^#?MaxAuthTries", line: "MaxAuthTries 3"}
     - {regexp: "^#?ClientAliveInterval", line: "ClientAliveInterval 300"}
     - {regexp: "^#?ClientAliveCountMax", line: "ClientAliveCountMax 2"}
+    - {regexp: "^#?LoginGraceTime", line: "LoginGraceTime 30"}
+    - {regexp: "^#?AllowTcpForwarding", line: "AllowTcpForwarding no"}
   notify: Restart sshd
 
-- name: Configure fail2ban for SSH
+- name: Configure fail2ban for SSH brute-force protection
   ansible.builtin.copy:
     content: |
       [sshd]
-      enabled = true
-      port = ssh
-      filter = sshd
-      logpath = /var/log/auth.log
-      maxretry = 5
-      bantime = 3600
+      enabled  = true
+      port     = {{ hardening_ssh_port }}
+      filter   = sshd
+      logpath  = /var/log/auth.log
+      maxretry = {{ hardening_fail2ban_maxretry }}
+      bantime  = {{ hardening_fail2ban_bantime }}
+      findtime = {{ hardening_fail2ban_findtime }}
     dest: /etc/fail2ban/jail.d/sshd.conf
+    owner: root
+    group: root
     mode: "0644"
   notify: Restart fail2ban
 
@@ -33,15 +40,37 @@
     state: started
     enabled: true
 
-- name: Set kernel sysctl hardening parameters
+- name: Apply kernel sysctl hardening parameters
   ansible.posix.sysctl:
     name: "{{ item.key }}"
     value: "{{ item.value }}"
     state: present
     sysctl_set: true
+    reload: true
   loop:
     - {key: "net.ipv4.conf.all.rp_filter", value: "1"}
     - {key: "net.ipv4.conf.default.rp_filter", value: "1"}
     - {key: "net.ipv4.icmp_echo_ignore_broadcasts", value: "1"}
     - {key: "net.ipv4.conf.all.accept_source_route", value: "0"}
+    - {key: "net.ipv4.conf.default.accept_source_route", value: "0"}
+    - {key: "net.ipv4.conf.all.log_martians", value: "1"}
     - {key: "kernel.dmesg_restrict", value: "1"}
+    - {key: "kernel.kptr_restrict", value: "2"}
+
+- name: Set secure permissions on /var/ossec/etc (Wazuh config)
+  ansible.builtin.file:
+    path: /var/ossec/etc
+    state: directory
+    owner: root
+    group: wazuh
+    mode: "0770"
+  ignore_errors: true
+
+- name: Disable USB storage (optional lab hardening)
+  ansible.builtin.copy:
+    content: "install usb-storage /bin/true\n"
+    dest: /etc/modprobe.d/disable-usb-storage.conf
+    owner: root
+    group: root
+    mode: "0644"
+  when: hardening_disable_usb_storage

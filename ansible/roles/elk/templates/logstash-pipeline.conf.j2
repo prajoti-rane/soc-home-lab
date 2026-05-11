@@ -1,0 +1,69 @@
+# Logstash Pipeline — Wazuh Alerts to Elasticsearch
+# Managed by Ansible — do not edit manually.
+# Template: ansible/roles/elk/templates/logstash-pipeline.conf.j2
+
+input {
+  beats {
+    port => {{ logstash_beats_port }}
+    # Add TLS in production
+    # ssl => true
+    # ssl_certificate => "/etc/logstash/certs/logstash.crt"
+    # ssl_key         => "/etc/logstash/certs/logstash.key"
+  }
+}
+
+filter {
+  # Parse the Wazuh alert JSON body from the 'message' field
+  if [message] {
+    json {
+      source  => "message"
+      target  => "wazuh"
+      tag_on_failure => ["_wazuh_json_parse_failure"]
+    }
+  }
+
+  # Normalise timestamp
+  if [wazuh][timestamp] {
+    date {
+      match    => ["[wazuh][timestamp]", "ISO8601"]
+      target   => "@timestamp"
+      tag_on_failure => ["_date_parse_failure"]
+    }
+  }
+
+  # Tag with MITRE ATT&CK technique if present
+  if [wazuh][rule][mitre][id] {
+    mutate {
+      add_field => {
+        "[@metadata][mitre_id]" => "%{[wazuh][rule][mitre][id]}"
+      }
+    }
+  }
+
+  # Set the Elasticsearch index based on alert level
+  mutate {
+    add_field => {
+      "[@metadata][index]" => "{{ logstash_es_index_prefix }}"
+    }
+  }
+
+  # Drop heartbeat/keepalive events (rule level 0)
+  if [wazuh][rule][level] and [wazuh][rule][level] == 0 {
+    drop {}
+  }
+}
+
+output {
+  elasticsearch {
+    hosts => ["http://localhost:{{ elasticsearch_http_port }}"]
+    index => "%{[@metadata][index]}-%{+YYYY.MM.dd}"
+    # Uncomment for authentication:
+    # user     => "elastic"
+    # password => "${ES_PASSWORD}"
+  }
+
+  # Uncomment to debug pipeline output:
+  # stdout {
+  #   codec => rubydebug
+  # }
+}

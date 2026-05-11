@@ -1,14 +1,19 @@
 ---
-# Deploy Wazuh Manager on the SIEM node
+# Deploy Wazuh Manager + ELK Stack on the SIEM node (192.168.64.10)
+# Prerequisites: Ubuntu 24.04 ARM64 VM running, SSH key auth configured for user 'soc'
 # Run: ansible-playbook playbooks/wazuh-manager.yml
 
-- name: Deploy Wazuh Manager
+- name: Deploy Wazuh SIEM and ELK stack
   hosts: siem
   become: true
+
+  pre_tasks:
+    - name: Gather facts
+      ansible.builtin.gather_facts:
+
   roles:
+    - role: common
     - role: wazuh
-  vars:
-    wazuh_manager_ip: "192.168.64.10"
-    wazuh_api_port: 55000
-    wazuh_registration_port: 1515
-    wazuh_log_level: 1
+    - role: elk
+    - role: filebeat
+    - role: hardening

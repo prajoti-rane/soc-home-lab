@@ -1,0 +1,175 @@
+<Sysmon schemaversion="4.90">
+  <!--
+    SOC Home Lab — Sysmon Configuration
+    Based on SwiftOnSecurity sysmon-config (github.com/SwiftOnSecurity/sysmon-config)
+    Tuned for lab attack simulation coverage across MITRE ATT&CK techniques:
+    T1059 (Execution), T1055 (Injection), T1003 (Credential Access),
+    T1547 (Persistence), T1070 (Defense Evasion), T1071 (C2)
+  -->
+
+  <EventFiltering>
+
+    <!-- ── EventID 1: Process Create ─────────────────────────────────────── -->
+    <RuleGroup name="" groupRelation="or">
+      <ProcessCreate onmatch="exclude">
+        <!-- Exclude high-volume trusted system processes -->
+        <Image condition="is">C:\Windows\System32\SearchIndexer.exe</Image>
+        <Image condition="is">C:\Windows\System32\taskhostw.exe</Image>
+        <CommandLine condition="contains">conhost.exe</CommandLine>
+      </ProcessCreate>
+    </RuleGroup>
+
+    <!-- ── EventID 2: File Creation Time Changed ─────────────────────────── -->
+    <RuleGroup name="" groupRelation="or">
+      <FileCreateTime onmatch="include">
+        <!-- Timestomping detection — any process changing file create time -->
+        <Image condition="excludes">C:\Windows\system32\msiexec.exe</Image>
+      </FileCreateTime>
+    </RuleGroup>
+
+    <!-- ── EventID 3: Network Connection ─────────────────────────────────── -->
+    <RuleGroup name="" groupRelation="or">
+      <NetworkConnect onmatch="include">
+        <!-- C2 ports: common C2 frameworks use these -->
+        <DestinationPort condition="is">443</DestinationPort>
+        <DestinationPort condition="is">80</DestinationPort>
+        <DestinationPort condition="is">8080</DestinationPort>
+        <DestinationPort condition="is">8443</DestinationPort>
+        <!-- SMB lateral movement -->
+        <DestinationPort condition="is">445</DestinationPort>
+        <!-- WinRM lateral movement -->
+        <DestinationPort condition="is">5985</DestinationPort>
+        <DestinationPort condition="is">5986</DestinationPort>
+        <!-- Processes in writable paths making any network connection -->
+        <Image condition="contains">\Temp\</Image>
+        <Image condition="contains">\AppData\</Image>
+        <Image condition="contains">\ProgramData\</Image>
+        <Image condition="contains">\Users\Public\</Image>
+      </NetworkConnect>
+    </RuleGroup>
+
+    <!-- ── EventID 5: Process Terminate ──────────────────────────────────── -->
+    <RuleGroup name="" groupRelation="or">
+      <ProcessTerminate onmatch="include">
+        <!-- Track security tool termination -->
+        <Image condition="contains">sysmon</Image>
+        <Image condition="contains">defender</Image>
+        <Image condition="contains">MsMpEng</Image>
+      </ProcessTerminate>
+    </RuleGroup>
+
+    <!-- ── EventID 7: Image Loaded (DLL Load) ─────────────────────────────── -->
+    <RuleGroup name="" groupRelation="or">
+      <ImageLoad onmatch="include">
+        <!-- DLL loads from writable paths — possible DLL hijacking -->
+        <ImageLoaded condition="contains">\Temp\</ImageLoaded>
+        <ImageLoaded condition="contains">\AppData\</ImageLoaded>
+        <ImageLoaded condition="contains">\ProgramData\</ImageLoaded>
+        <ImageLoaded condition="contains">\Users\Public\</ImageLoaded>
+        <!-- Unsigned DLLs loaded by sensitive processes -->
+        <Signed condition="is">false</Signed>
+      </ImageLoad>
+    </RuleGroup>
+
+    <!-- ── EventID 8: CreateRemoteThread ────────────────────────────────── -->
+    <RuleGroup name="" groupRelation="or">
+      <CreateRemoteThread onmatch="include">
+        <!-- All CreateRemoteThread events — strong injection indicator -->
+        <TargetImage condition="excludes">C:\Windows\System32\</TargetImage>
+      </CreateRemoteThread>
+    </RuleGroup>
+
+    <!-- ── EventID 10: ProcessAccess ─────────────────────────────────────── -->
+    <RuleGroup name="" groupRelation="or">
+      <ProcessAccess onmatch="include">
+        <!-- LSASS access — credential dumping indicator -->
+        <TargetImage condition="is">C:\Windows\system32\lsass.exe</TargetImage>
+        <!-- WerFault.exe and SecurityHealth.exe legitimately access lsass — exclude -->
+        <SourceImage condition="is" onmatch="exclude">C:\Windows\system32\WerFault.exe</SourceImage>
+        <SourceImage condition="is" onmatch="exclude">C:\Windows\system32\wermgr.exe</SourceImage>
+        <!-- SAM database access -->
+        <TargetImage condition="is">C:\Windows\system32\samsrv.dll</TargetImage>
+      </ProcessAccess>
+    </RuleGroup>
+
+    <!-- ── EventID 11: FileCreate ─────────────────────────────────────────── -->
+    <RuleGroup name="" groupRelation="or">
+      <FileCreate onmatch="include">
+        <!-- Executables dropped in user-writable locations -->
+        <TargetFilename condition="contains">\Temp\</TargetFilename>
+        <TargetFilename condition="contains">\AppData\Roaming\</TargetFilename>
+        <TargetFilename condition="contains">\AppData\Local\Temp\</TargetFilename>
+        <TargetFilename condition="contains">\Users\Public\</TargetFilename>
+        <TargetFilename condition="contains">\ProgramData\</TargetFilename>
+        <!-- Script files anywhere -->
+        <TargetFilename condition="end with">.ps1</TargetFilename>
+        <TargetFilename condition="end with">.vbs</TargetFilename>
+        <TargetFilename condition="end with">.bat</TargetFilename>
+        <TargetFilename condition="end with">.hta</TargetFilename>
+      </FileCreate>
+    </RuleGroup>
+
+    <!-- ── EventID 12/13/14: Registry Events ─────────────────────────────── -->
+    <RuleGroup name="" groupRelation="or">
+      <RegistryEvent onmatch="include">
+        <!-- Persistence: Run keys -->
+        <TargetObject condition="contains">CurrentVersion\Run</TargetObject>
+        <TargetObject condition="contains">CurrentVersion\RunOnce</TargetObject>
+        <!-- Persistence: Services -->
+        <TargetObject condition="contains">SYSTEM\CurrentControlSet\Services\</TargetObject>
+        <!-- Boot execute -->
+        <TargetObject condition="contains">BootExecute</TargetObject>
+        <!-- ASEP: AppInit DLLs -->
+        <TargetObject condition="contains">AppInit_DLLs</TargetObject>
+        <!-- Disable Windows Defender -->
+        <TargetObject condition="contains">Windows Defender\DisableAntiSpyware</TargetObject>
+        <TargetObject condition="contains">Windows Defender\DisableRealtimeMonitoring</TargetObject>
+      </RegistryEvent>
+    </RuleGroup>
+
+    <!-- ── EventID 15: FileCreateStreamHash (ADS) ─────────────────────────── -->
+    <RuleGroup name="" groupRelation="or">
+      <FileCreateStreamHash onmatch="include">
+        <!-- All alternate data stream creation events -->
+        <TargetFilename condition="contains">\Temp\</TargetFilename>
+        <TargetFilename condition="contains">\AppData\</TargetFilename>
+      </FileCreateStreamHash>
+    </RuleGroup>
+
+    <!-- ── EventID 17/18: Pipe Events ─────────────────────────────────────── -->
+    <RuleGroup name="" groupRelation="or">
+      <PipeEvent onmatch="include">
+        <!-- Named pipes used by C2 frameworks (Sliver, Cobalt Strike) -->
+        <PipeName condition="begin with">\postex_</PipeName>
+        <PipeName condition="begin with">\mojo.</PipeName>
+        <PipeName condition="begin with">\wkssvc</PipeName>
+      </PipeEvent>
+    </RuleGroup>
+
+    <!-- ── EventID 22: DNS Query ──────────────────────────────────────────── -->
+    <RuleGroup name="" groupRelation="or">
+      <DnsQuery onmatch="include">
+        <!-- All DNS queries from non-browser processes — C2 beacon detection -->
+        <QueryName condition="excludes">.</QueryName>
+      </DnsQuery>
+    </RuleGroup>
+
+    <!-- ── EventID 23: File Delete ────────────────────────────────────────── -->
+    <RuleGroup name="" groupRelation="or">
+      <FileDelete onmatch="include">
+        <!-- Anti-forensics: deleting logs or evidence -->
+        <TargetFilename condition="contains">\Temp\</TargetFilename>
+        <TargetFilename condition="end with">.ps1</TargetFilename>
+        <TargetFilename condition="end with">.exe</TargetFilename>
+      </FileDelete>
+    </RuleGroup>
+
+    <!-- ── EventID 25: Process Tampering ──────────────────────────────────── -->
+    <RuleGroup name="" groupRelation="or">
+      <ProcessTampering onmatch="include">
+        <Type condition="is">Image is replaced</Type>
+      </ProcessTampering>
+    </RuleGroup>
+
+  </EventFiltering>
+</Sysmon>

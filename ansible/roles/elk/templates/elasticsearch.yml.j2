@@ -1,0 +1,26 @@
+# Elasticsearch Configuration
+# Managed by Ansible — do not edit manually.
+# Template: ansible/roles/elk/templates/elasticsearch.yml.j2
+
+cluster.name: {{ elasticsearch_cluster_name }}
+node.name: {{ elasticsearch_node_name }}
+
+# Storage paths
+path.data: /var/lib/elasticsearch
+path.logs: /var/log/elasticsearch
+
+# Network
+network.host: {{ elasticsearch_http_host }}
+http.port: {{ elasticsearch_http_port }}
+
+# Single-node discovery (no clustering for this lab)
+discovery.type: single-node
+
+# Security — disabled for lab simplicity
+# Enable for production: xpack.security.enabled: true
+xpack.security.enabled: {{ elasticsearch_security_enabled | lower }}
+xpack.security.enrollment.enabled: false
+
+# ILM / lifecycle settings
+# Hot phase: 7 days, then warm; delete after 30 days
+xpack.ilm.enabled: true

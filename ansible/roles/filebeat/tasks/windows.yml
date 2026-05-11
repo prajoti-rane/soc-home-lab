@@ -1,0 +1,47 @@
+---
+- name: Create Filebeat installation directory
+  ansible.windows.win_file:
+    path: 'C:\Program Files\Filebeat'
+    state: directory
+
+- name: Create temporary download directory
+  ansible.windows.win_file:
+    path: C:\Temp
+    state: directory
+
+- name: Download Filebeat zip for Windows (x64 binary runs under WOW64 on ARM64)
+  ansible.windows.win_get_url:
+    url: "{{ filebeat_windows_download_url }}"
+    dest: C:\Temp\filebeat.zip
+
+- name: Extract Filebeat zip to staging directory
+  ansible.windows.win_shell: >-
+    Expand-Archive -LiteralPath C:\Temp\filebeat.zip
+    -DestinationPath C:\Temp\filebeat-stage -Force
+  changed_when: true
+
+- name: Move Filebeat files to install directory
+  ansible.windows.win_shell: >-
+    Copy-Item -Path C:\Temp\filebeat-stage\* -Destination 'C:\Program Files\Filebeat' -Recurse -Force
+  args:
+    creates: 'C:\Program Files\Filebeat\filebeat.exe'
+  changed_when: true
+
+- name: Deploy filebeat.yml from Windows template
+  ansible.windows.win_template:
+    src: filebeat-windows.yml.j2
+    dest: 'C:\Program Files\Filebeat\filebeat.yml'
+
+- name: Install Filebeat as a Windows service
+  ansible.windows.win_command: >-
+    powershell.exe -ExecutionPolicy Bypass
+    -File "C:\Program Files\Filebeat\install-service-filebeat.ps1"
+  args:
+    creates: 'C:\Program Files\Filebeat\filebeat.exe'
+  changed_when: true
+
+- name: Ensure Filebeat service is running
+  ansible.windows.win_service:
+    name: filebeat
+    state: started
+    start_mode: auto

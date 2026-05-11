@@ -1,0 +1,20 @@
+# Kibana Configuration
+# Managed by Ansible — do not edit manually.
+# Template: ansible/roles/elk/templates/kibana.yml.j2
+
+server.port: {{ kibana_port }}
+server.host: "{{ kibana_host }}"
+server.name: "{{ kibana_server_name }}"
+
+# Elasticsearch connection — no TLS since xpack.security is disabled
+elasticsearch.hosts: ["http://localhost:{{ elasticsearch_http_port }}"]
+
+# Logging
+logging.root.level: warn
+
+# Disable usage telemetry
+telemetry.optIn: false
+telemetry.enabled: false
+
+# No authentication required (security disabled for lab)
+xpack.security.enabled: false

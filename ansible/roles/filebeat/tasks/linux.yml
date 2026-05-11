@@ -1,0 +1,46 @@
+---
+- name: Download Elastic GPG key for Filebeat (Linux)
+  ansible.builtin.get_url:
+    url: https://artifacts.elastic.co/GPG-KEY-elasticsearch
+    dest: /tmp/GPG-KEY-elasticsearch-fb
+    mode: "0644"
+
+- name: Dearmor Elastic GPG key (Linux)
+  ansible.builtin.command:
+    cmd: gpg --dearmor --batch --yes -o /usr/share/keyrings/elastic-fb.gpg /tmp/GPG-KEY-elasticsearch-fb
+    creates: /usr/share/keyrings/elastic-fb.gpg
+  changed_when: true
+
+- name: Set permissions on Elastic Filebeat keyring
+  ansible.builtin.file:
+    path: /usr/share/keyrings/elastic-fb.gpg
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Add Elastic apt repository for Filebeat
+  ansible.builtin.apt_repository:
+    repo: "deb [signed-by=/usr/share/keyrings/elastic-fb.gpg] https://artifacts.elastic.co/packages/8.x/apt stable main"
+    state: present
+    filename: elastic-filebeat
+
+- name: Install Filebeat
+  ansible.builtin.apt:
+    name: filebeat
+    state: present
+    update_cache: true
+
+- name: Deploy filebeat.yml from Linux template
+  ansible.builtin.template:
+    src: filebeat-linux.yml.j2
+    dest: /etc/filebeat/filebeat.yml
+    owner: root
+    group: root
+    mode: "0600"
+  notify: Restart filebeat
+
+- name: Enable and start Filebeat service
+  ansible.builtin.service:
+    name: filebeat
+    state: started
+    enabled: true

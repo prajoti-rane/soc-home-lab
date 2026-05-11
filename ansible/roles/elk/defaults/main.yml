@@ -1,12 +1,14 @@
 ---
-elasticsearch_heap_size: "4g"
+elasticsearch_heap_size: "2g"
 elasticsearch_cluster_name: "soc-lab"
 elasticsearch_node_name: "node-1"
-elasticsearch_http_host: "127.0.0.1"
+elasticsearch_http_host: "0.0.0.0"
 elasticsearch_http_port: 9200
+elasticsearch_security_enabled: false
 
 kibana_host: "0.0.0.0"
 kibana_port: 5601
-kibana_elasticsearch_url: "https://127.0.0.1:9200"
+kibana_server_name: "soc-lab-kibana"
 
 logstash_beats_port: 5044
+logstash_es_index_prefix: "wazuh-alerts"
