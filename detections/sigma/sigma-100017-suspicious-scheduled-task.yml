@@ -1,0 +1,86 @@
+title: Suspicious Scheduled Task Created with Scripting Payload
+id: b8c9d0e1-f2a3-4567-bcde-789012345617
+status: experimental
+description: Detects schtasks.exe process creation with command-line arguments indicating a scripting engine (PowerShell, cmd, wscript, mshta, rundll32) as the task action. Attackers commonly create scheduled tasks for persistence by running PowerShell downloaders or in-memory payloads.
+references:
+  - https://attack.mitre.org/techniques/T1053/005/
+  - https://attack.mitre.org/techniques/T1059/001/
+  - https://redcanary.com/threat-detection-report/techniques/scheduled-tasks/
+author: Prajoti Rane
+date: 2026/05/11
+modified: 2026/05/11
+tags:
+  - attack.persistence
+  - attack.execution
+  - attack.t1053.005
+  - attack.t1059.001
+logsource:
+  category: process_creation
+  product: windows
+detection:
+  selection_schtasks:
+    Image|endswith: '\schtasks.exe'
+    CommandLine|contains:
+      - '/create'
+      - '/sc '
+  selection_payload:
+    CommandLine|contains:
+      - 'powershell'
+      - 'cmd.exe'
+      - 'wscript'
+      - 'cscript'
+      - 'mshta'
+      - 'rundll32'
+      - 'regsvr32'
+  condition: selection_schtasks and selection_payload
+fields:
+  - Image
+  - CommandLine
+  - ParentImage
+  - User
+  - ProcessId
+falsepositives:
+  - Software installers that create legitimate scheduled tasks using PowerShell
+  - System administrators creating maintenance tasks
+level: medium
+---
+title: Scheduled Task with Obfuscated or Temp-Path PowerShell Payload
+id: b8c9d0e1-f2a3-4567-bcde-789012345618
+status: experimental
+description: Detects schtasks.exe creating a task whose action includes obfuscated PowerShell (encoded command) or references a binary in a user-writable directory (Temp, AppData). This is a high-confidence indicator of attacker persistence after initial access.
+references:
+  - https://attack.mitre.org/techniques/T1053/005/
+  - https://attack.mitre.org/techniques/T1027/
+author: Prajoti Rane
+date: 2026/05/11
+tags:
+  - attack.persistence
+  - attack.defense_evasion
+  - attack.execution
+  - attack.t1053.005
+  - attack.t1027
+  - attack.t1059.001
+logsource:
+  category: process_creation
+  product: windows
+detection:
+  selection_schtasks:
+    Image|endswith: '\schtasks.exe'
+    CommandLine|contains:
+      - '/create'
+  selection_obfuscated:
+    CommandLine|contains:
+      - '-EncodedCommand'
+      - '-enc '
+      - '-w hidden'
+      - '\Temp\'
+      - '\AppData\'
+  condition: selection_schtasks and selection_obfuscated
+fields:
+  - Image
+  - CommandLine
+  - ParentImage
+  - User
+falsepositives:
+  - Unlikely — obfuscated commands in scheduled tasks almost never represent legitimate use
+level: critical

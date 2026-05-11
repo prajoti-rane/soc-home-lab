@@ -1,0 +1,98 @@
+title: Suspicious PowerShell Execution with Obfuscation or Bypass Flags
+id: d4e5f6a7-b8c9-0123-defa-345678901206
+status: experimental
+description: Detects PowerShell execution with flags commonly used for obfuscation, policy bypass, or command hiding. Includes -EncodedCommand, -ExecutionPolicy Bypass, -WindowStyle Hidden, and related indicators.
+references:
+  - https://attack.mitre.org/techniques/T1059/001/
+  - https://attack.mitre.org/techniques/T1027/
+  - https://github.com/danielbohannon/Invoke-Obfuscation
+author: Prajoti Rane
+date: 2026/05/11
+modified: 2026/05/11
+tags:
+  - attack.execution
+  - attack.defense_evasion
+  - attack.t1059.001
+  - attack.t1027
+logsource:
+  category: process_creation
+  product: windows
+detection:
+  selection_image:
+    Image|endswith:
+      - '\powershell.exe'
+      - '\pwsh.exe'
+  selection_flags:
+    CommandLine|contains:
+      - '-EncodedCommand'
+      - '-enc '
+      - '-ep Bypass'
+      - '-ExecutionPolicy Bypass'
+      - '-ExecutionPolicy bypass'
+      - '-WindowStyle Hidden'
+      - '-w hidden'
+      - '-w hid'
+      - '-NonInteractive'
+      - '-NoProfile'
+      - '-nop '
+  filter_system:
+    User|endswith: '$'  # Computer accounts / SYSTEM typically end with $
+  condition: selection_image and selection_flags and not filter_system
+fields:
+  - Image
+  - CommandLine
+  - ParentImage
+  - User
+  - ProcessId
+falsepositives:
+  - Legitimate administrative scripts run via Remote Management or deployment tools
+  - Windows Update components that use encoded commands for complex operations
+  - SCCM / Intune client management
+level: high
+---
+title: Obfuscated PowerShell Launched from Suspicious Parent Path
+id: d4e5f6a7-b8c9-0123-defa-345678901207
+status: experimental
+description: Detects obfuscated PowerShell execution (encoded command or bypass flags) launched by a parent process located in a user-writable directory such as Temp, AppData, or Downloads. This pattern is consistent with phishing payloads and drive-by malware.
+references:
+  - https://attack.mitre.org/techniques/T1059/001/
+  - https://attack.mitre.org/techniques/T1566/001/
+author: Prajoti Rane
+date: 2026/05/11
+tags:
+  - attack.execution
+  - attack.defense_evasion
+  - attack.initial_access
+  - attack.t1059.001
+  - attack.t1027
+  - attack.t1566.001
+logsource:
+  category: process_creation
+  product: windows
+detection:
+  selection_image:
+    Image|endswith:
+      - '\powershell.exe'
+      - '\pwsh.exe'
+  selection_flags:
+    CommandLine|contains:
+      - '-EncodedCommand'
+      - '-enc '
+      - '-ExecutionPolicy Bypass'
+      - '-w hidden'
+  selection_parent:
+    ParentImage|contains:
+      - '\Temp\'
+      - '\AppData\'
+      - '\Downloads\'
+      - '\Desktop\'
+  condition: selection_image and selection_flags and selection_parent
+fields:
+  - Image
+  - CommandLine
+  - ParentImage
+  - ParentCommandLine
+  - User
+falsepositives:
+  - Unlikely — developer consoles are not typically in Temp/AppData
+level: critical

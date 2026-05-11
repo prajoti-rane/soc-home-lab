@@ -1,0 +1,82 @@
+title: Windows Defender Tampered via Registry
+id: a7b8c9d0-e1f2-3456-abcd-678901234515
+status: experimental
+description: Detects Sysmon registry value set events (EID 13) targeting Windows Defender exclusion or configuration keys, a common attacker technique to prevent detection before deploying malware or C2 implants.
+references:
+  - https://attack.mitre.org/techniques/T1562/001/
+  - https://docs.microsoft.com/en-us/windows/security/threat-protection/microsoft-defender-antivirus/configure-exclusions-microsoft-defender-antivirus
+author: Prajoti Rane
+date: 2026/05/11
+modified: 2026/05/11
+tags:
+  - attack.defense_evasion
+  - attack.t1562.001
+logsource:
+  category: registry_set
+  product: windows
+detection:
+  selection:
+    EventID: 13
+    TargetObject|contains:
+      - '\Windows Defender\Exclusions\Paths'
+      - '\Windows Defender\Exclusions\Extensions'
+      - '\Windows Defender\Exclusions\Processes'
+      - '\Windows Defender\Real-Time Protection\DisableRealtimeMonitoring'
+      - '\Windows Defender\DisableAntiSpyware'
+      - '\Windows Defender\DisableAntiVirus'
+      - '\Windows Defender\Features\TamperProtection'
+  condition: selection
+fields:
+  - TargetObject
+  - Details
+  - Image
+  - User
+falsepositives:
+  - Security administrators configuring legitimate exclusions for business applications
+  - AV management consoles (MEM/Intune) applying policy
+level: critical
+---
+title: Windows Defender Disabled via PowerShell Set-MpPreference
+id: a7b8c9d0-e1f2-3456-abcd-678901234516
+status: experimental
+description: Detects PowerShell execution of Set-MpPreference or Add-MpPreference with parameters that disable Windows Defender monitoring or add exclusions, which attackers use to prevent detection before deploying payloads.
+references:
+  - https://attack.mitre.org/techniques/T1562/001/
+  - https://attack.mitre.org/techniques/T1059/001/
+author: Prajoti Rane
+date: 2026/05/11
+tags:
+  - attack.defense_evasion
+  - attack.execution
+  - attack.t1562.001
+  - attack.t1059.001
+logsource:
+  category: process_creation
+  product: windows
+detection:
+  selection_image:
+    Image|endswith:
+      - '\powershell.exe'
+      - '\pwsh.exe'
+  selection_cmdline:
+    CommandLine|contains:
+      - 'Set-MpPreference'
+      - 'Add-MpPreference'
+  selection_params:
+    CommandLine|contains:
+      - 'DisableRealtimeMonitoring'
+      - 'ExclusionPath'
+      - 'ExclusionExtension'
+      - 'ExclusionProcess'
+      - 'DisableBehaviorMonitoring'
+      - 'DisableIOAVProtection'
+      - 'DisableScriptScanning'
+  condition: selection_image and selection_cmdline and selection_params
+fields:
+  - Image
+  - CommandLine
+  - ParentImage
+  - User
+falsepositives:
+  - IT administrators legitimately managing Defender exclusions via PowerShell (should use Intune/GPO instead)
+level: critical

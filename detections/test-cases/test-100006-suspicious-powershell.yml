@@ -1,0 +1,104 @@
+---
+test_id: TC-100006
+rule_id: 100007
+rule_name: Suspicious PowerShell with Obfuscation / Bypass Flags
+mitre_technique: T1059.001
+wazuh_rule_file: detections/wazuh-rules/100006-suspicious-powershell.xml
+sigma_rule_file: detections/sigma/sigma-100006-suspicious-powershell.yml
+
+# --- Positive Test (obfuscated PowerShell) ---
+positive_test:
+  description: >
+    Sysmon EventID 1 (ProcessCreate) for powershell.exe with -EncodedCommand flag.
+    The base64-encoded payload decodes to "IEX (New-Object Net.WebClient).DownloadString(...)".
+    ART T1059.001 Test 1 executes an encoded command.
+  art_test:
+    technique: T1059.001
+    test_number: 1
+    command: |
+      # [victim-windows] Execute encoded PowerShell (simulates malware dropper)
+      Invoke-AtomicTest T1059.001 -TestNumbers 1
+      # Direct equivalent:
+      # $enc = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes(
+      #   "Write-Host 'Atomic Red Team T1059.001'"))
+      # powershell.exe -NoP -NonI -W Hidden -Enc $enc
+  log_samples:
+    - |
+      {
+        "win": {
+          "system": {
+            "eventID": "1",
+            "channel": "Microsoft-Windows-Sysmon/Operational",
+            "computer": "victim-windows"
+          },
+          "eventdata": {
+            "ruleName": "",
+            "processId": "3344",
+            "image": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+            "commandLine": "powershell.exe  -NoP -NonI -W Hidden -Enc JABzAD0ATgBlAHcALQBPAGIAagBlAGMA",
+            "parentImage": "C:\\Windows\\System32\\cmd.exe",
+            "user": "victim-windows\\SOCAdmin",
+            "currentDirectory": "C:\\Users\\SOCAdmin\\Downloads\\"
+          }
+        }
+      }
+  expected_output:
+    alert_fired: true
+    rule_id: 100007
+    rule_level: 12
+    rule_description_contains: "Suspicious PowerShell: obfuscation/bypass flags"
+    relevant_fields:
+      win.eventdata.image: "powershell.exe"
+      win.eventdata.commandLine_contains: "-Enc"
+
+# --- Positive Test (critical: from suspicious parent path → rule 100008) ---
+positive_test_critical:
+  description: >
+    PowerShell with -EncodedCommand launched from a parent binary located in
+    C:\Users\SOCAdmin\Downloads\. Should escalate to rule 100008 (level 14).
+  log_samples:
+    - |
+      {
+        "win": {
+          "system": { "eventID": "1", "computer": "victim-windows" },
+          "eventdata": {
+            "image": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+            "commandLine": "powershell.exe -w hidden -enc JABzAD0ATgBlAHcALQBPAGIAag==",
+            "parentImage": "C:\\Users\\SOCAdmin\\Downloads\\invoice.exe",
+            "user": "victim-windows\\SOCAdmin"
+          }
+        }
+      }
+  expected_output:
+    alert_fired: true
+    rule_id: 100008
+    rule_level: 14
+    rule_description_contains: "Obfuscated PowerShell launched from suspicious parent"
+
+# --- Negative Test ---
+negative_test:
+  description: >
+    Legitimate PowerShell script run by SYSTEM (e.g., Windows Update task).
+    The SYSTEM user filter should suppress this.
+  log_samples:
+    - |
+      {
+        "win": {
+          "system": { "eventID": "1", "computer": "victim-windows" },
+          "eventdata": {
+            "image": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+            "commandLine": "powershell.exe -enc SQBuAHMAdABhAGwAbAAtAFcAaQBuAGQAbwB3AHMAVQBwAGQAYQB0AGUA",
+            "user": "NT AUTHORITY\\SYSTEM"
+          }
+        }
+      }
+  expected_output:
+    alert_fired: false
+    note: "SYSTEM-context PS excluded by negate filter — base rule 100006 (level 6) may fire but not 100007"
+
+validation:
+  command: |
+    sudo /var/ossec/bin/wazuh-logtest
+    # Paste each JSON log sample. Verify rule 100007 (level 12) for the first positive,
+    # rule 100008 (level 14) for critical positive, no 100007 for negative.
+  expected_logtest_output_fragment: "Rule Id: 100007"

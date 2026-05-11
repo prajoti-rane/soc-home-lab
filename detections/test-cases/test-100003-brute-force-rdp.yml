@@ -1,0 +1,114 @@
+---
+test_id: TC-100003
+rule_id: 100003
+rule_name: RDP Brute Force Attack
+mitre_technique: T1110.001
+wazuh_rule_file: detections/wazuh-rules/100003-brute-force-rdp.xml
+sigma_rule_file: detections/sigma/sigma-100003-brute-force-rdp.yml
+
+# --- Positive Test ---
+positive_test:
+  description: >
+    Five consecutive Windows EventID 4625 (Failed Logon, LogonType 10 = RemoteInteractive)
+    from the same source IP (192.168.64.30 → 192.168.64.20). Simulates Hydra or
+    crowbar RDP brute-force.
+  art_test:
+    technique: T1110.001
+    test_number: 2
+    command: |
+      # [kali-attacker] RDP brute-force using crowbar
+      crowbar -b rdp -s 192.168.64.20/32 -u SOCAdmin \
+        -C /usr/share/wordlists/rockyou.txt -n 1
+  log_samples:
+    - |
+      {
+        "win": {
+          "system": { "eventID": "4625", "computer": "victim-windows" },
+          "eventdata": {
+            "targetUserName": "Administrator",
+            "logonType": "10",
+            "ipAddress": "192.168.64.30",
+            "failureReason": "%%2313"
+          }
+        }
+      }
+    - |
+      {
+        "win": {
+          "system": { "eventID": "4625", "computer": "victim-windows" },
+          "eventdata": {
+            "targetUserName": "Administrator",
+            "logonType": "10",
+            "ipAddress": "192.168.64.30",
+            "failureReason": "%%2313"
+          }
+        }
+      }
+    - |
+      {
+        "win": {
+          "system": { "eventID": "4625", "computer": "victim-windows" },
+          "eventdata": {
+            "targetUserName": "SOCAdmin",
+            "logonType": "10",
+            "ipAddress": "192.168.64.30",
+            "failureReason": "%%2313"
+          }
+        }
+      }
+    - |
+      {
+        "win": {
+          "system": { "eventID": "4625", "computer": "victim-windows" },
+          "eventdata": {
+            "targetUserName": "SOCAdmin",
+            "logonType": "10",
+            "ipAddress": "192.168.64.30",
+            "failureReason": "%%2313"
+          }
+        }
+      }
+    - |
+      {
+        "win": {
+          "system": { "eventID": "4625", "computer": "victim-windows" },
+          "eventdata": {
+            "targetUserName": "SOCAdmin",
+            "logonType": "10",
+            "ipAddress": "192.168.64.30",
+            "failureReason": "%%2313"
+          }
+        }
+      }
+  expected_output:
+    alert_fired: true
+    rule_id: 100003
+    rule_level: 10
+    rule_description_contains: "RDP brute-force attack detected"
+    relevant_fields:
+      srcip: "192.168.64.30"
+
+# --- Negative Test ---
+negative_test:
+  description: >
+    Four failed RDP logons from different IPs — should NOT trigger rule 100003
+    since same_source_ip grouping requires 5+ from a single source.
+  log_samples:
+    - |
+      { "win": { "system": {"eventID":"4625"}, "eventdata": {"ipAddress":"10.0.0.1","logonType":"10"} } }
+    - |
+      { "win": { "system": {"eventID":"4625"}, "eventdata": {"ipAddress":"10.0.0.2","logonType":"10"} } }
+    - |
+      { "win": { "system": {"eventID":"4625"}, "eventdata": {"ipAddress":"10.0.0.3","logonType":"10"} } }
+    - |
+      { "win": { "system": {"eventID":"4625"}, "eventdata": {"ipAddress":"10.0.0.4","logonType":"10"} } }
+  expected_output:
+    alert_fired: false
+    note: "Different source IPs do not satisfy same_source_ip grouping"
+
+validation:
+  command: |
+    sudo /var/ossec/bin/wazuh-logtest
+    # Paste each JSON log sample (one per line) from the positive test.
+    # After 5 events from 192.168.64.30, expect Rule 100003 level 10.
+  expected_logtest_output_fragment: "Rule Id: 100003"

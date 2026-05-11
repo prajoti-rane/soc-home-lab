@@ -1,0 +1,45 @@
+<!--
+  Rule: C2 Beaconing — Repeated Outbound Connections (Sliver/HTTP/S)
+  MITRE: T1071.001 — Application Layer Protocol: Web Protocols
+  Parent SID: 61605 (Wazuh Sysmon EventID 3 — NetworkConnect)
+  Level: 12 (threshold), 14 (from writable path)
+-->
+<group name="c2,network,sysmon,windows,custom,">
+
+  <!-- Base: network connection from a suspicious initiator binary path -->
+  <rule id="100009" level="6">
+    <if_sid>61605</if_sid>
+    <field name="win.eventdata.image" type="pcre2">(?i)(\\Temp\\|\\AppData\\|\\Downloads\\|\\Users\\[^\\]+\\Desktop\\|\\ProgramData\\[^\\]+\\[^\\]+\.exe)</field>
+    <field name="win.eventdata.destinationPort" type="pcre2">^(80|443|8080|8443|4444|8888|1337|53)$</field>
+    <description>Network connection from writable-path binary: $(win.eventdata.image) → $(win.eventdata.destinationIp):$(win.eventdata.destinationPort)</description>
+    <mitre>
+      <id>T1071.001</id>
+    </mitre>
+    <group>c2,network,</group>
+  </rule>
+
+  <!-- Beaconing: 10+ connections to same destination IP in 5 minutes -->
+  <rule id="100010" level="12" frequency="10" timeframe="300">
+    <if_matched_sid>100009</if_matched_sid>
+    <same_field>win.eventdata.destinationIp</same_field>
+    <description>C2 beaconing detected: $(win.eventdata.image) made 10+ connections to $(win.eventdata.destinationIp) in 5 min</description>
+    <mitre>
+      <id>T1071.001</id>
+      <id>T1132</id>
+    </mitre>
+    <group>c2,beaconing,pci_dss_10.6.1,gdpr_IV_35.7.d,hipaa_164.312.b,nist_800_53_SI.4,tsc_CC6.8,tsc_CC7.2,tsc_CC7.3,</group>
+  </rule>
+
+  <!-- Critical: beaconing binary path is also Sysmon-flagged as unsigned -->
+  <rule id="100011" level="14">
+    <if_sid>100010</if_sid>
+    <field name="win.eventdata.signed" type="pcre2">(?i)^false$</field>
+    <description>Critical C2 beaconing: unsigned binary $(win.eventdata.image) beaconing to $(win.eventdata.destinationIp)</description>
+    <mitre>
+      <id>T1071.001</id>
+      <id>T1036.005</id>
+    </mitre>
+    <group>c2,beaconing,pci_dss_10.6.1,gdpr_IV_35.7.d,hipaa_164.312.b,nist_800_53_SI.4,tsc_CC6.8,tsc_CC7.2,tsc_CC7.3,</group>
+  </rule>
+
+</group>

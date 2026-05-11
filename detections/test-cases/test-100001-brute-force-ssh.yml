@@ -1,0 +1,67 @@
+---
+test_id: TC-100001
+rule_id: 100001
+rule_name: SSH Brute Force Attack
+mitre_technique: T1110.001
+wazuh_rule_file: detections/wazuh-rules/100001-brute-force-ssh.xml
+sigma_rule_file: detections/sigma/sigma-100001-brute-force-ssh.yml
+
+# --- Positive Test ---
+positive_test:
+  description: >
+    Five consecutive failed SSH authentication attempts from the same source IP
+    (192.168.64.30 → 192.168.64.10). Simulates an attacker running hydra or
+    medusa against the wazuh-manager SSH service.
+  art_test:
+    technique: T1110.001
+    test_number: 1
+    command: |
+      # [kali-attacker] Run from 192.168.64.30
+      hydra -l soc -P /usr/share/wordlists/rockyou.txt \
+        ssh://192.168.64.10 -t 4 -V -f -I
+  log_samples:
+    - >
+      May 11 12:00:01 wazuh-manager sshd[1234]: Failed password for invalid user admin
+      from 192.168.64.30 port 54321 ssh2
+    - >
+      May 11 12:00:02 wazuh-manager sshd[1234]: Failed password for invalid user admin
+      from 192.168.64.30 port 54322 ssh2
+    - >
+      May 11 12:00:03 wazuh-manager sshd[1234]: Failed password for invalid user root
+      from 192.168.64.30 port 54323 ssh2
+    - >
+      May 11 12:00:04 wazuh-manager sshd[1234]: Failed password for invalid user soc
+      from 192.168.64.30 port 54324 ssh2
+    - >
+      May 11 12:00:05 wazuh-manager sshd[1234]: Failed password for invalid user soc
+      from 192.168.64.30 port 54325 ssh2
+  expected_output:
+    alert_fired: true
+    rule_id: 100001
+    rule_level: 10
+    rule_description_contains: "SSH brute-force attack detected"
+    relevant_fields:
+      srcip: "192.168.64.30"
+
+# --- Negative Test ---
+negative_test:
+  description: >
+    A single failed SSH attempt (normal typo scenario). Should NOT trigger
+    rule 100001 since it requires 5+ failures.
+  log_samples:
+    - >
+      May 11 12:05:00 wazuh-manager sshd[1234]: Failed password for soc
+      from 192.168.64.100 port 44321 ssh2
+  expected_output:
+    alert_fired: false
+    rule_id: null
+    note: "Single failure only fires parent rule 5710 at level 5, not custom rule 100001"
+
+# --- Wazuh-logtest Instructions ---
+validation:
+  command: |
+    sudo /var/ossec/bin/wazuh-logtest
+    # Paste each log_sample line one at a time. After the 5th line from the
+    # same source IP, the output should show:
+    # **Rule 100001** (level 10): SSH brute-force attack detected
+  expected_logtest_output_fragment: "Rule Id: 100001"

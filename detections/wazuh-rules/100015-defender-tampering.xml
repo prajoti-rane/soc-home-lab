@@ -1,0 +1,33 @@
+<!--
+  Rule: Windows Defender Tampering via Registry
+  MITRE: T1562.001 — Impair Defenses: Disable or Modify Tools
+  Parent SID: 61614 (Wazuh Sysmon EventID 13 — RegistryValueSet)
+  Level: 14
+-->
+<group name="defense_evasion,registry,sysmon,windows,custom,">
+
+  <!-- Defender exclusion path added via registry -->
+  <rule id="100015" level="14">
+    <if_sid>61614</if_sid>
+    <field name="win.eventdata.targetObject" type="pcre2">(?i)\\Windows Defender\\(Exclusions|Real-Time Protection|DisableAntiSpyware|DisableAntiVirus|DisableBehaviorMonitoring|DisableOnAccessProtection|DisableScanOnRealtimeEnable)</field>
+    <description>Defender tampered via registry: $(win.eventdata.targetObject) set by $(win.eventdata.user)</description>
+    <mitre>
+      <id>T1562.001</id>
+    </mitre>
+    <group>defense_evasion,pci_dss_10.6.1,gdpr_IV_35.7.d,hipaa_164.312.b,nist_800_53_SI.4,nist_800_53_SI.3,tsc_CC6.8,tsc_CC7.2,tsc_CC7.3,</group>
+  </rule>
+
+  <!-- Defender disabled via PowerShell Set-MpPreference (cmdline evidence) -->
+  <rule id="100016" level="14">
+    <if_sid>61603</if_sid>
+    <field name="win.eventdata.image" type="pcre2">(?i)(powershell|pwsh)\.exe$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)(Set-MpPreference|Add-MpPreference).*(DisableReal|ExclusionPath|ExclusionExtension|DisableBehavior|DisableIO)</field>
+    <description>Defender disabled via PowerShell: $(win.eventdata.commandLine)</description>
+    <mitre>
+      <id>T1562.001</id>
+      <id>T1059.001</id>
+    </mitre>
+    <group>defense_evasion,powershell,pci_dss_10.6.1,gdpr_IV_35.7.d,hipaa_164.312.b,nist_800_53_SI.4,nist_800_53_SI.3,tsc_CC6.8,tsc_CC7.2,tsc_CC7.3,</group>
+  </rule>
+
+</group>

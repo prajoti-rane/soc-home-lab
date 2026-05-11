@@ -1,0 +1,46 @@
+<!--
+  Rule: Lateral Movement — PsExec / Remote Service Creation
+  MITRE: T1021.002 — Remote Services: SMB/Windows Admin Shares
+          T1570 — Lateral Tool Transfer
+  Parent SID: 60010 (Wazuh Windows EventID 7045 — service installed)
+  Level: 12 (PSEXESVC), 14 (remote + credential)
+-->
+<group name="lateral_movement,windows,custom,">
+
+  <!-- EventID 7045: new service created on this host -->
+  <rule id="100012" level="10">
+    <if_sid>60010</if_sid>
+    <field name="win.eventdata.serviceName" type="pcre2">(?i)(PSEXESVC|psexec|remcom|PAExec|winexe)</field>
+    <description>PsExec service installed: $(win.eventdata.serviceName) by $(win.eventdata.subjectUserName)</description>
+    <mitre>
+      <id>T1021.002</id>
+    </mitre>
+    <group>lateral_movement,pci_dss_10.6.1,gdpr_IV_35.7.d,hipaa_164.312.b,nist_800_53_SI.4,tsc_CC7.2,</group>
+  </rule>
+
+  <!-- EventID 7045 with binary path pointing to ADMIN$ / IPC$ / C$ share -->
+  <rule id="100013" level="12">
+    <if_sid>60010</if_sid>
+    <field name="win.eventdata.imagePath" type="pcre2">(?i)(\\\\[^\\]+\\(ADMIN\$|IPC\$|C\$)|\\Windows\\Temp\\[^.]+\.exe|\\Users\\[^\\]+\\AppData\\)</field>
+    <description>Suspicious remote service binary path: $(win.eventdata.imagePath) — possible lateral movement</description>
+    <mitre>
+      <id>T1021.002</id>
+      <id>T1570</id>
+    </mitre>
+    <group>lateral_movement,pci_dss_10.6.1,gdpr_IV_35.7.d,hipaa_164.312.b,nist_800_53_SI.4,tsc_CC7.2,tsc_CC7.3,</group>
+  </rule>
+
+  <!-- EventID 4648: explicit credential use — correlate with service creation -->
+  <rule id="100014" level="14" timeframe="120">
+    <if_matched_sid>100012</if_matched_sid>
+    <if_sid>60106</if_sid>
+    <same_field>win.eventdata.targetServerName</same_field>
+    <description>Lateral movement confirmed: PsExec service + explicit credential logon (4648) on same host within 120 s</description>
+    <mitre>
+      <id>T1021.002</id>
+      <id>T1550.002</id>
+    </mitre>
+    <group>lateral_movement,pci_dss_10.6.1,pci_dss_10.2.5,gdpr_IV_32.2,hipaa_164.312.b,nist_800_53_SI.4,tsc_CC6.1,tsc_CC7.2,tsc_CC7.3,</group>
+  </rule>
+
+</group>

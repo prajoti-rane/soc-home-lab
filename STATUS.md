@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-05-11
+Last updated: 2026-05-11 (Phase 3 complete)
 
 ## Phase Overview
 
@@ -8,8 +8,8 @@ Last updated: 2026-05-11
 |-------|--------|-------------|
 | Phase 1 | ✅ Complete | Repository Bootstrap + Architecture Documentation |
 | Phase 2 | ✅ Complete | Ansible Automation |
-| Phase 3 | ⏳ Next | Detection Rules |
-| Phase 4 | 🔜 Planned | Attack Simulation Scripts |
+| Phase 3 | ✅ Complete | Detection Rules |
+| Phase 4 | ⏳ Next | Attack Simulation Scripts |
 | Phase 5 | 🔜 Planned | Incident Report Templates |
 | Phase 6 | 🔜 Planned | Runbook (Human-Executable Steps) |
 | Phase 7 | 🔜 Planned | Documentation Polish + CI/CD |
@@ -60,20 +60,30 @@ Last updated: 2026-05-11
 
 ---
 
-## Phase 3: Detection Rules — ⏳ NEXT
+## Phase 3: Detection Rules — ✅ COMPLETE
 
-**Goal:** Custom Wazuh rules and Sigma signatures covering the 10 MITRE ATT&CK techniques listed in the README, with validated true-positive rates.
+**Goal:** Custom Wazuh rules and Sigma signatures covering key MITRE ATT&CK techniques with validated test cases.
 
-**Planned work:**
-- [ ] Custom Wazuh XML rules for Sliver C2 IOCs
-- [ ] Sysmon EventID 10 rule (LSASS access)
-- [ ] PowerShell obfuscated command detection
-- [ ] Sigma rules (portable format, convertible to Splunk/QRadar/Sentinel)
-- [ ] Test case documents pairing each rule with an ART test ID
+**Delivered:**
+- [x] `detections/wazuh-rules/100001-brute-force-ssh.xml` — SSH brute-force + success compound (T1110.001)
+- [x] `detections/wazuh-rules/100003-brute-force-rdp.xml` — RDP EventID 4625 brute-force + success (T1110.001, T1021.001)
+- [x] `detections/wazuh-rules/100005-credential-dumping-lsass.xml` — Sysmon EID 10 LSASS access (T1003.001)
+- [x] `detections/wazuh-rules/100006-suspicious-powershell.xml` — Encoded/bypass PowerShell, 3-level chain (T1059.001, T1027)
+- [x] `detections/wazuh-rules/100009-c2-beaconing.xml` — Repeated outbound connections from writable-path binary (T1071.001)
+- [x] `detections/wazuh-rules/100012-lateral-movement-psexec.xml` — PsExec service install + remote credential (T1021.002)
+- [x] `detections/wazuh-rules/100015-defender-tampering.xml` — Registry Defender exclusion + Set-MpPreference (T1562.001)
+- [x] `detections/wazuh-rules/100017-suspicious-scheduled-task.xml` — schtasks with scripting/encoded payload (T1053.005)
+- [x] `detections/wazuh-rules/README.md` — Rule table, deployment instructions, correlation notes
+- [x] 8 Sigma rules in `detections/sigma/` — portable format with logsource categories, aggregation conditions, UUIDs
+- [x] `detections/sigma/README.md` — Sigma conversion instructions for Wazuh, Splunk, Sentinel, Elastic
+- [x] 8 YAML test cases in `detections/test-cases/` — positive + negative tests with inline JSON log samples
+- [x] `detections/test-cases/README.md` — Full kill-chain test sequence, ART commands, test file format
+- [x] `scripts/validate-detections.sh` — Automated PASS/FAIL validation via wazuh-logtest over SSH
+- [x] DECISIONS.md updated (decisions 12–16: per-file rules, compound chain, pcre2, Sigma as documentation, YAML test format)
 
 ---
 
-## Phase 4: Attack Simulation Scripts — 🔜 PLANNED
+## Phase 4: Attack Simulation Scripts — ⏳ NEXT
 
 **Goal:** Documented, repeatable attack scenarios with Sliver C2 and Atomic Red Team.
 

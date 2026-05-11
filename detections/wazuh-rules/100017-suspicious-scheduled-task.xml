@@ -1,0 +1,46 @@
+<!--
+  Rule: Suspicious Scheduled Task Creation
+  MITRE: T1053.005 — Scheduled Task/Job: Scheduled Task
+  Parent SID: 60106 (Wazuh Windows EventID 4698 — task created)
+              61603 (Sysmon EventID 1 — schtasks.exe process create)
+  Level: 10 (any new task), 14 (task with high-risk payload)
+-->
+<group name="persistence,scheduled_task,windows,custom,">
+
+  <!-- EventID 4698: new scheduled task registered -->
+  <rule id="100017" level="10">
+    <if_sid>60106</if_sid>
+    <description>Scheduled task created: $(win.eventdata.taskName) by $(win.eventdata.subjectUserName)</description>
+    <mitre>
+      <id>T1053.005</id>
+    </mitre>
+    <group>persistence,pci_dss_10.6.1,gdpr_IV_35.7.d,hipaa_164.312.b,nist_800_53_AC.2,tsc_CC6.1,tsc_CC7.2,</group>
+  </rule>
+
+  <!-- schtasks.exe with PowerShell payload or temp path -->
+  <rule id="100018" level="12">
+    <if_sid>61603</if_sid>
+    <field name="win.eventdata.image" type="pcre2">(?i)\\schtasks\.exe$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)(/sc|/create|/tr).*(powershell|cmd\.exe|wscript|cscript|mshta|rundll32|regsvr32)</field>
+    <description>Scheduled task created with scripting engine payload: $(win.eventdata.commandLine)</description>
+    <mitre>
+      <id>T1053.005</id>
+      <id>T1059.001</id>
+    </mitre>
+    <group>persistence,execution,pci_dss_10.6.1,gdpr_IV_35.7.d,hipaa_164.312.b,nist_800_53_AC.2,tsc_CC6.1,tsc_CC7.2,</group>
+  </rule>
+
+  <!-- Critical: task with encoded PowerShell command — strong IOC -->
+  <rule id="100019" level="14">
+    <if_sid>100018</if_sid>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)(-enc|-EncodedCommand|-e\s+[A-Za-z0-9+/]{20,}|-w\s*hid|\\Temp\\|\\AppData\\)</field>
+    <description>Critical: Scheduled task with obfuscated/temp-path PS payload — $(win.eventdata.commandLine)</description>
+    <mitre>
+      <id>T1053.005</id>
+      <id>T1059.001</id>
+      <id>T1027</id>
+    </mitre>
+    <group>persistence,execution,obfuscation,pci_dss_10.6.1,gdpr_IV_35.7.d,hipaa_164.312.b,nist_800_53_AC.2,nist_800_53_SI.4,tsc_CC6.1,tsc_CC7.2,tsc_CC7.3,</group>
+  </rule>
+
+</group>

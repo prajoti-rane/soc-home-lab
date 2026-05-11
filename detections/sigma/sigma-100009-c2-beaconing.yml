@@ -1,0 +1,83 @@
+title: C2 Beaconing — Repeated Outbound Connections from Writable-Path Binary
+id: e5f6a7b8-c9d0-1234-efab-456789012309
+status: experimental
+description: Detects Sysmon NetworkConnect events (EID 3) originating from processes running in user-writable directories (Temp, AppData, Downloads) that make 10 or more connections to the same external IP address within 5 minutes. This pattern matches Sliver C2 mTLS/HTTPS beaconing behavior.
+references:
+  - https://attack.mitre.org/techniques/T1071/001/
+  - https://github.com/BishopFox/sliver
+  - https://www.cisa.gov/news-events/cybersecurity-advisories/aa23-025a
+author: Prajoti Rane
+date: 2026/05/11
+modified: 2026/05/11
+tags:
+  - attack.command_and_control
+  - attack.t1071.001
+  - attack.t1132
+logsource:
+  category: network_connection
+  product: windows
+detection:
+  selection:
+    EventID: 3
+    Initiated: 'true'
+    Image|contains:
+      - '\Temp\'
+      - '\AppData\'
+      - '\Downloads\'
+      - '\ProgramData\'
+    DestinationPort:
+      - 443
+      - 80
+      - 8080
+      - 8443
+      - 4444
+      - 8888
+  timeframe: 5m
+  condition: selection | count(DestinationIp) by Image > 10
+fields:
+  - Image
+  - DestinationIp
+  - DestinationPort
+  - ProcessId
+  - User
+falsepositives:
+  - Browsers or update clients running from non-standard paths (unlikely for browsers)
+  - Security tools performing network scanning (authorized pen-test scenarios)
+level: high
+---
+title: C2 Beaconing from Unsigned Binary
+id: e5f6a7b8-c9d0-1234-efab-456789012310
+status: experimental
+description: Detects repeated outbound network connections from an unsigned executable in a writable directory, a high-confidence indicator of a malware C2 implant. Unsigned binaries in Temp/AppData that initiate external network connections almost never represent legitimate software.
+references:
+  - https://attack.mitre.org/techniques/T1071/001/
+  - https://attack.mitre.org/techniques/T1036/005/
+author: Prajoti Rane
+date: 2026/05/11
+tags:
+  - attack.command_and_control
+  - attack.defense_evasion
+  - attack.t1071.001
+  - attack.t1036.005
+logsource:
+  category: network_connection
+  product: windows
+detection:
+  selection:
+    EventID: 3
+    Initiated: 'true'
+    Signed: 'false'
+    Image|contains:
+      - '\Temp\'
+      - '\AppData\'
+      - '\Downloads\'
+  timeframe: 5m
+  condition: selection | count(DestinationIp) by Image > 10
+fields:
+  - Image
+  - Signed
+  - DestinationIp
+  - DestinationPort
+falsepositives:
+  - Self-compiled legitimate utilities (rare in production environments)
+level: critical

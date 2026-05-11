@@ -192,3 +192,65 @@ This file records non-obvious architectural decisions made during the design and
 **Rationale:** Elastic does not ship a native ARM64 Filebeat binary for Windows as of Filebeat 8.x. The x86_64 binary runs under Windows 11 ARM64's built-in WOW64 (Windows on Windows 64-bit) x86_64 emulation layer, which is hardware-accelerated on Apple Silicon. Performance impact is acceptable for the low event volume of a single-VM lab.
 
 **Future:** If Elastic ships native ARM64 Windows binaries, update `filebeat_windows_download_url` in `ansible/roles/filebeat/defaults/main.yml`.
+
+---
+
+## Decision 12: One XML File Per Detection Topic (Not a Single local_rules.xml)
+
+**Date:** 2026-05-11
+**Status:** Final
+
+**Decision:** Store each detection topic in its own XML file (`100001-brute-force-ssh.xml`, etc.) rather than a single `local_rules.xml`.
+
+**Alternatives considered:**
+
+| Option | Pros | Cons |
+|--------|------|------|
+| **Per-topic XML files** (chosen) | Git diff is scoped to one technique; easy to enable/disable individual rules; clear PR scope | Requires copying multiple files to `/var/ossec/etc/rules/` |
+| Single local_rules.xml | Matches Wazuh default layout; one file to deploy | All rules in one diff; harder to review; disabling one rule risks breaking adjacent rules |
+
+**Rationale:** Detection engineering benefits from atomic, reviewable units. A PR adding a brute-force rule should not touch credential-dumping rules. Per-file structure also enables `ansible copy` to selectively deploy rule subsets per environment.
+
+---
+
+## Decision 13: Compound Rules (Base → Threshold → Critical) Within Each File
+
+**Date:** 2026-05-11
+**Status:** Final
+
+**Decision:** Use a 2–3 rule chain within each XML file: a base classifier rule (level 6), a threshold rule that fires after N matches (level 10–12), and optionally a compound critical rule (level 14) for kill-chain correlation.
+
+**Rationale:** Wazuh's `if_matched_sid` + `frequency` + `timeframe` mechanism requires a parent rule to count against. A single monolithic rule at level 14 would either fire on every event (no threshold) or require complex external state. The 3-level chain provides graduated alert severity that maps to SIEM triage workflows: level 6 → informational, 10–12 → medium/high priority, 14 → critical / auto-page.
+
+---
+
+## Decision 14: pcre2 for Field Matching, not Plain String Match
+
+**Date:** 2026-05-11
+**Status:** Final
+
+**Decision:** Use `type="pcre2"` on all `<field>` elements in custom Wazuh rules.
+
+**Rationale:** Wazuh's default field match is case-sensitive substring. Windows paths and process names are case-inconsistent (e.g., `powershell.exe` vs `PowerShell.exe`). Using `pcre2` with `(?i)` flag enables case-insensitive matching without maintaining multiple rule variants. The `negate="yes"` attribute on `<field>` enables allowlist exclusions without requiring a separate rule group.
+
+---
+
+## Decision 15: Sigma Rules as Parallel Documentation, Not Primary Detection
+
+**Date:** 2026-05-11
+**Status:** Final
+
+**Decision:** Sigma rules in `detections/sigma/` are documentation and portability artifacts. The Wazuh XML rules in `detections/wazuh-rules/` are the deployed detection mechanism.
+
+**Rationale:** No Sigma-to-Wazuh converter produces valid XML that passes `wazuh-logtest` without manual adjustment. Writing both formats ensures: (1) detection logic can be exported to any SIEM platform for interviews or future employer environments; (2) detection engineering methodology is visible in the portfolio even if the reviewer is unfamiliar with Wazuh XML syntax. Sigma rules follow v1 spec with `pySigma` compatibility.
+
+---
+
+## Decision 16: Test Cases in YAML Format with Inline Log Samples
+
+**Date:** 2026-05-11
+**Status:** Final
+
+**Decision:** Test case files are YAML (not Markdown) and include inline JSON log sample payloads that can be directly piped to `wazuh-logtest`.
+
+**Rationale:** YAML test files are machine-parseable by `validate-detections.sh`, enabling automated validation without a running Wazuh agent. Inline log samples eliminate the need to search for sample events; a reviewer can paste the JSON directly into wazuh-logtest and see the rule fire. This is more valuable for portfolio demonstration than narrative-only test case documents.

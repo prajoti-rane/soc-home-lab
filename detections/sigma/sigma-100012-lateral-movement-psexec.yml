@@ -1,0 +1,70 @@
+title: PsExec Lateral Movement via Remote Service Installation
+id: f6a7b8c9-d0e1-2345-fabc-567890123412
+status: experimental
+description: Detects the installation of the PSEXESVC service (EventID 7045) on a Windows system, which is the primary indicator of PsExec-based lateral movement. Also covers PAExec and other PsExec-equivalent tools.
+references:
+  - https://attack.mitre.org/techniques/T1021/002/
+  - https://docs.microsoft.com/en-us/sysinternals/downloads/psexec
+  - https://attack.mitre.org/techniques/T1570/
+author: Prajoti Rane
+date: 2026/05/11
+modified: 2026/05/11
+tags:
+  - attack.lateral_movement
+  - attack.t1021.002
+  - attack.t1570
+logsource:
+  product: windows
+  service: system
+detection:
+  selection:
+    EventID: 7045
+    ServiceName|contains:
+      - 'PSEXESVC'
+      - 'psexec'
+      - 'PAExec'
+      - 'remcom'
+      - 'winexe'
+  condition: selection
+fields:
+  - ServiceName
+  - ServiceFileName
+  - SubjectUserName
+  - SubjectDomainName
+falsepositives:
+  - Authorized IT administrators using PsExec for legitimate remote management
+  - Incident response teams using PsExec-based tools for investigation
+level: high
+---
+title: Remote Service Created with Suspicious Binary Path
+id: f6a7b8c9-d0e1-2345-fabc-567890123413
+status: experimental
+description: Detects EventID 7045 (service installed) where the service binary path points to a network share (ADMIN$, C$) or user-writable directory, indicating a file was dropped and executed via SMB lateral movement.
+references:
+  - https://attack.mitre.org/techniques/T1021/002/
+author: Prajoti Rane
+date: 2026/05/11
+tags:
+  - attack.lateral_movement
+  - attack.t1021.002
+  - attack.t1570
+logsource:
+  product: windows
+  service: system
+detection:
+  selection:
+    EventID: 7045
+    ServiceFileName|contains:
+      - '\\ADMIN$\\'
+      - '\\IPC$\\'
+      - '\\C$\\'
+      - '\Windows\Temp\'
+      - '\Users\'
+  condition: selection
+fields:
+  - ServiceName
+  - ServiceFileName
+  - SubjectUserName
+falsepositives:
+  - Enterprise software deployment systems that push binaries via admin shares
+level: high

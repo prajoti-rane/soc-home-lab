@@ -1,0 +1,99 @@
+---
+test_id: TC-100015
+rule_id: 100015
+rule_name: Windows Defender Tampered via Registry
+mitre_technique: T1562.001
+wazuh_rule_file: detections/wazuh-rules/100015-defender-tampering.xml
+sigma_rule_file: detections/sigma/sigma-100015-defender-tampering.yml
+
+# --- Positive Test (registry) ---
+positive_test:
+  description: >
+    Sysmon EventID 13 (RegistryValueSet) targeting
+    HKLM\SOFTWARE\Microsoft\Windows Defender\Exclusions\Paths.
+    Simulates an attacker adding an exclusion to hide their tooling directory.
+  art_test:
+    technique: T1562.001
+    test_number: 1
+    command: |
+      # [victim-windows] Add Defender exclusion (ART T1562.001 Test 1)
+      Invoke-AtomicTest T1562.001 -TestNumbers 1
+      # Direct equivalent:
+      # Add-MpPreference -ExclusionPath "C:\AtomicRedTeam"
+  log_samples:
+    - |
+      {
+        "win": {
+          "system": {
+            "eventID": "13",
+            "channel": "Microsoft-Windows-Sysmon/Operational",
+            "computer": "victim-windows"
+          },
+          "eventdata": {
+            "eventType": "SetValue",
+            "image": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+            "targetObject": "HKLM\\SOFTWARE\\Microsoft\\Windows Defender\\Exclusions\\Paths\\C:\\AtomicRedTeam",
+            "details": "DWORD (0x00000000)",
+            "user": "victim-windows\\SOCAdmin"
+          }
+        }
+      }
+  expected_output:
+    alert_fired: true
+    rule_id: 100015
+    rule_level: 14
+    rule_description_contains: "Defender tampered via registry"
+    relevant_fields:
+      win.eventdata.targetObject_contains: "Windows Defender\\Exclusions"
+      win.eventdata.user: "victim-windows\\SOCAdmin"
+
+# --- Positive Test (PowerShell Set-MpPreference — rule 100016) ---
+positive_test_powershell:
+  description: >
+    Sysmon EID 1 (ProcessCreate) for powershell.exe running Set-MpPreference
+    -DisableRealtimeMonitoring $true. Should trigger rule 100016 (level 14).
+  log_samples:
+    - |
+      {
+        "win": {
+          "system": { "eventID": "1", "computer": "victim-windows" },
+          "eventdata": {
+            "image": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+            "commandLine": "powershell.exe Set-MpPreference -DisableRealtimeMonitoring $true",
+            "user": "victim-windows\\SOCAdmin"
+          }
+        }
+      }
+  expected_output:
+    alert_fired: true
+    rule_id: 100016
+    rule_level: 14
+    rule_description_contains: "Defender disabled via PowerShell"
+
+# --- Negative Test ---
+negative_test:
+  description: >
+    Defender updating its signature database — EventID 13 writes to a non-exclusion
+    registry path. Should NOT trigger rule 100015.
+  log_samples:
+    - |
+      {
+        "win": {
+          "system": { "eventID": "13", "computer": "victim-windows" },
+          "eventdata": {
+            "targetObject": "HKLM\\SOFTWARE\\Microsoft\\Windows Defender\\Signature Updates\\LastSuccessfulUpdateTime",
+            "image": "C:\\ProgramData\\Microsoft\\Windows Defender\\Platform\\4.18.2024.1-0\\MsMpEng.exe"
+          }
+        }
+      }
+  expected_output:
+    alert_fired: false
+    note: "Signature Updates key does not match Exclusions/Real-Time Protection pattern"
+
+validation:
+  command: |
+    sudo /var/ossec/bin/wazuh-logtest
+    # Registry positive → Rule 100015 level 14
+    # PowerShell positive → Rule 100016 level 14
+    # Signature update → no custom rule
+  expected_logtest_output_fragment: "Rule Id: 100015"

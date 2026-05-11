@@ -1,0 +1,66 @@
+title: SSH Brute Force Attack
+id: a1b2c3d4-e5f6-7890-abcd-ef1234567801
+status: experimental
+description: Detects 5 or more failed SSH authentication attempts from the same source IP within 60 seconds, indicating a brute-force attack.
+references:
+  - https://attack.mitre.org/techniques/T1110/001/
+  - https://www.cisa.gov/news-events/cybersecurity-advisories
+author: Prajoti Rane
+date: 2026/05/11
+modified: 2026/05/11
+tags:
+  - attack.credential_access
+  - attack.t1110.001
+logsource:
+  product: linux
+  service: sshd
+detection:
+  selection:
+    program: sshd
+    message|contains:
+      - 'Failed password'
+      - 'Invalid user'
+      - 'Connection closed by authenticating user'
+  timeframe: 60s
+  condition: selection | count() by src_ip > 5
+fields:
+  - src_ip
+  - user
+  - dest_port
+falsepositives:
+  - Automated configuration management tools (Ansible, Puppet) with misconfigured SSH keys
+  - Security scanners running authorized vulnerability assessments
+level: high
+---
+title: SSH Brute Force Followed by Successful Login
+id: a1b2c3d4-e5f6-7890-abcd-ef1234567802
+status: experimental
+description: Detects a successful SSH login from an IP address that previously triggered a brute-force alert, indicating the attack succeeded.
+references:
+  - https://attack.mitre.org/techniques/T1110/001/
+  - https://attack.mitre.org/techniques/T1021/004/
+author: Prajoti Rane
+date: 2026/05/11
+tags:
+  - attack.credential_access
+  - attack.lateral_movement
+  - attack.t1110.001
+  - attack.t1021.004
+logsource:
+  product: linux
+  service: sshd
+detection:
+  brute_force:
+    program: sshd
+    message|contains:
+      - 'Failed password'
+      - 'Invalid user'
+    timeframe: 300s
+    condition: brute_force | count() by src_ip > 5
+  success:
+    program: sshd
+    message|contains: 'Accepted'
+  condition: success and brute_force (same src_ip within 300s)
+falsepositives:
+  - Legitimate user who forgot credentials and then successfully logged in
+level: critical

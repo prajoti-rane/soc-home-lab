@@ -1,0 +1,101 @@
+---
+test_id: TC-100012
+rule_id: 100012
+rule_name: Lateral Movement via PsExec Service Installation
+mitre_technique: T1021.002
+wazuh_rule_file: detections/wazuh-rules/100012-lateral-movement-psexec.xml
+sigma_rule_file: detections/sigma/sigma-100012-lateral-movement-psexec.yml
+
+# --- Positive Test ---
+positive_test:
+  description: >
+    Windows EventID 7045 (service installed) with ServiceName = PSEXESVC.
+    Simulates an attacker using PsExec from 192.168.64.30 to execute a command
+    on 192.168.64.20 (victim-windows) via SMB ADMIN$ share.
+  art_test:
+    technique: T1021.002
+    test_number: 1
+    command: |
+      # [kali-attacker] Using impacket psexec.py to lateral-move to victim-windows
+      python3 /usr/share/doc/python3-impacket/examples/psexec.py \
+        SOCAdmin:Password123@192.168.64.20 'whoami'
+      # This will install PSEXESVC on victim-windows and execute the command
+  log_samples:
+    - |
+      {
+        "win": {
+          "system": {
+            "eventID": "7045",
+            "channel": "System",
+            "computer": "victim-windows"
+          },
+          "eventdata": {
+            "serviceName": "PSEXESVC",
+            "imagePath": "%SystemRoot%\\PSEXESVC.exe",
+            "serviceType": "16",
+            "startType": "3",
+            "subjectUserName": "SOCAdmin",
+            "subjectDomainName": "victim-windows"
+          }
+        }
+      }
+  expected_output:
+    alert_fired: true
+    rule_id: 100012
+    rule_level: 10
+    rule_description_contains: "PsExec service installed"
+    relevant_fields:
+      win.eventdata.serviceName: "PSEXESVC"
+      win.eventdata.subjectUserName: "SOCAdmin"
+
+# --- Positive Test (suspicious path — rule 100013) ---
+positive_test_suspicious_path:
+  description: >
+    EventID 7045 with a service binary path pointing to the ADMIN$ share —
+    a hallmark of SMB lateral movement with binary drop.
+  log_samples:
+    - |
+      {
+        "win": {
+          "system": { "eventID": "7045", "channel": "System", "computer": "victim-windows" },
+          "eventdata": {
+            "serviceName": "backdoor",
+            "imagePath": "\\\\192.168.64.30\\ADMIN$\\backdoor.exe",
+            "subjectUserName": "SOCAdmin"
+          }
+        }
+      }
+  expected_output:
+    alert_fired: true
+    rule_id: 100013
+    rule_level: 12
+    rule_description_contains: "Suspicious remote service binary path"
+
+# --- Negative Test ---
+negative_test:
+  description: >
+    Legitimate Windows Defender service installation (EventID 7045) — should not
+    match the PSEXESVC name filter or suspicious path filter.
+  log_samples:
+    - |
+      {
+        "win": {
+          "system": { "eventID": "7045", "channel": "System", "computer": "victim-windows" },
+          "eventdata": {
+            "serviceName": "WinDefend",
+            "imagePath": "C:\\ProgramData\\Microsoft\\Windows Defender\\Platform\\4.18.2024.1-0\\MsMpEng.exe",
+            "subjectUserName": "SYSTEM"
+          }
+        }
+      }
+  expected_output:
+    alert_fired: false
+    note: "WinDefend service name does not match PSEXESVC pattern; imagePath not a writable user-path"
+
+validation:
+  command: |
+    sudo /var/ossec/bin/wazuh-logtest
+    # Paste PSEXESVC positive event → expect Rule 100012 level 10.
+    # Paste ADMIN$ path event → expect Rule 100013 level 12.
+    # Paste WinDefend event → no custom rule should fire.
+  expected_logtest_output_fragment: "Rule Id: 100012"

@@ -1,0 +1,68 @@
+title: RDP Brute Force Attack via Windows Event Log
+id: b2c3d4e5-f6a7-8901-bcde-f12345678903
+status: experimental
+description: Detects 5 or more Windows EventID 4625 (failed logon) events from the same source IP within 60 seconds, indicating an RDP or network brute-force attack.
+references:
+  - https://attack.mitre.org/techniques/T1110/001/
+  - https://docs.microsoft.com/en-us/windows/security/threat-protection/auditing/event-4625
+author: Prajoti Rane
+date: 2026/05/11
+modified: 2026/05/11
+tags:
+  - attack.credential_access
+  - attack.t1110.001
+logsource:
+  product: windows
+  service: security
+detection:
+  selection:
+    EventID: 4625
+    LogonType:
+      - 3    # Network
+      - 10   # RemoteInteractive (RDP)
+  timeframe: 60s
+  condition: selection | count() by IpAddress > 5
+fields:
+  - IpAddress
+  - TargetUserName
+  - LogonType
+  - WorkstationName
+falsepositives:
+  - Legitimate users who forget their password
+  - Service accounts with misconfigured credentials causing repeated failures
+level: high
+---
+title: RDP Brute Force Followed by Successful Interactive Login
+id: b2c3d4e5-f6a7-8901-bcde-f12345678904
+status: experimental
+description: Detects a successful remote interactive logon (EventID 4624, LogonType 10) from an IP address that previously triggered 5+ failed logons, indicating RDP brute-force success.
+references:
+  - https://attack.mitre.org/techniques/T1110/001/
+  - https://attack.mitre.org/techniques/T1021/001/
+author: Prajoti Rane
+date: 2026/05/11
+tags:
+  - attack.credential_access
+  - attack.lateral_movement
+  - attack.t1110.001
+  - attack.t1021.001
+logsource:
+  product: windows
+  service: security
+detection:
+  failures:
+    EventID: 4625
+    LogonType: 10
+    timeframe: 300s
+    condition: failures | count() by IpAddress > 5
+  success:
+    EventID: 4624
+    LogonType: 10
+  condition: success and failures (same IpAddress within 300s)
+fields:
+  - IpAddress
+  - TargetUserName
+  - LogonType
+falsepositives:
+  - Legitimate administrator who forgot credentials and subsequently logged in
+level: critical
