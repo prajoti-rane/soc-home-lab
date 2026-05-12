@@ -1,149 +1,244 @@
-# Incident Report — [INCIDENT-ID]: [Short Title]
+# Incident Report: [IR-YYYY-NNN] [Short Descriptive Title]
 
-**Date:** YYYY-MM-DD  
-**Analyst:** Prajoti Rane  
-**Severity:** Critical / High / Medium / Low  
-**Status:** Open / Contained / Resolved  
-**MITRE ATT&CK:** T1XXX.XXX, T1XXX
+**Date Opened:** YYYY-MM-DD  
+**Date Closed:** YYYY-MM-DD (leave blank if open)  
+**Lead Analyst:** [Full Name]  
+**Review Status:** Draft / Under Review / Approved  
+
+---
+
+## Classification
+
+| Field | Value |
+|-------|-------|
+| **Severity** | Critical / High / Medium / Low |
+| **Status** | Open / Investigating / Contained / Eradicated / Closed |
+| **MITRE ATT&CK Tactics** | Initial Access, Execution, Persistence, Credential Access, etc. |
+| **MITRE ATT&CK Techniques** | T1059.001, T1003.001, T1071.001, etc. |
+| **Affected Systems** | [hostname(s)] |
+| **Detection Source** | Wazuh SIEM / Sysmon / Manual |
 
 ---
 
 ## Executive Summary
 
-One paragraph describing what happened, how it was detected, and what the impact was.
+> *Write 2–4 sentences for non-technical leadership. Cover: what happened, when it was detected, what data was at risk, and what action was taken. Avoid jargon. Example: "On [date], automated monitoring detected unauthorized access to the [system]. An attacker used [technique] to [impact]. The affected system was isolated at [time], and all malicious artifacts were removed by [time]. No evidence of data exfiltration was found."*
+
+[Write executive summary here]
 
 ---
 
-## Timeline
+## Timeline (UTC)
 
-| Time (UTC) | Event | Source | Evidence |
-|------------|-------|--------|---------|
-| HH:MM:SS | Initial access — implant dropped to C:\Temp\update.exe | Sysmon EventID 11 | Wazuh alert #100200 |
-| HH:MM:SS | Implant executed | Sysmon EventID 1 | rule.id: 92001 |
-| HH:MM:SS | Persistence via Registry Run Key | Sysmon EventID 13 | rule.id: 17101 |
-| HH:MM:SS | LSASS memory access | Sysmon EventID 10 | rule.id: 100201 |
-| HH:MM:SS | Event log cleared | Windows EventID 1102 | rule.id: 18145 |
+> *Reconstruct chronologically from logs, Kibana, and Sysmon telemetry. Include all significant events: first attacker action, first alert, analyst response, containment, eradication. Use Kibana's Discover view with `@timestamp` sorted ascending to build this.*
 
----
-
-## Attack Chain (MITRE ATT&CK)
-
-```
-Initial Access       → T1566 (Phishing / direct delivery in lab)
-Execution            → T1059.001 (PowerShell)
-Persistence          → T1547.001 (Registry Run Key)
-Privilege Escalation → T1055 (Process Injection)
-Credential Access    → T1003.001 (LSASS Memory)
-Defense Evasion      → T1070.001 (Event Log Clearing)
-Command & Control    → T1071.001 (HTTPS C2 — Sliver)
-```
+| Timestamp (UTC) | Event | Source | Details |
+|----------------|-------|--------|---------|
+| YYYY-MM-DD HH:MM:SS | [what happened] | [Wazuh / Sysmon EID X / Windows EventLog] | [specific fields, rule IDs, process names] |
+| YYYY-MM-DD HH:MM:SS | First Wazuh alert fired | Wazuh Rule NNNNNN | [alert description and level] |
+| YYYY-MM-DD HH:MM:SS | Analyst notified | Kibana dashboard | [how the alert was surfaced] |
+| YYYY-MM-DD HH:MM:SS | Containment initiated | Analyst action | [specific step taken] |
+| YYYY-MM-DD HH:MM:SS | Eradication confirmed | Analyst verification | [how clean state was verified] |
 
 ---
 
-## Indicators of Compromise (IOCs)
+## Affected Assets
 
-### File Hashes
+> *List every host, account, and service touched by the incident. "Impact" should describe what the attacker did to or could have done to that asset.*
 
-| File | SHA256 | Location | Tool |
-|------|--------|----------|------|
-| update.exe | `<hash>` | C:\Temp\update.exe | Sliver implant |
-
-### Network IOCs
-
-| Type | Value | Protocol | Port |
-|------|-------|----------|------|
-| IP | 192.168.64.30 | HTTPS | 443 |
-| Domain | — | — | — |
-
-### Registry IOCs
-
-| Key | Value Name | Data |
-|-----|-----------|------|
-| HKCU\Software\Microsoft\Windows\CurrentVersion\Run | updater | C:\Temp\update.exe |
-
-### Process IOCs
-
-| Process | Parent | Command Line | Unusual? |
-|---------|--------|-------------|---------|
-| update.exe | explorer.exe | update.exe | Yes — unexpected parent |
+| Asset | IP Address | Role | Impact |
+|-------|-----------|------|--------|
+| [hostname] | [192.168.64.XX] | [SIEM / Victim / Attacker] | [compromised / accessed / credential exposed / no impact] |
 
 ---
 
-## Detection Details
+## Technical Analysis
 
-### Alerts Generated
+### Attack Vector
 
-| Rule ID | Rule Name | Level | Time | Agent |
-|---------|-----------|-------|------|-------|
-| 100200 | Suspicious process in writable path | 14 | HH:MM | victim-windows |
-| 17101 | Registry Run Key modification | 10 | HH:MM | victim-windows |
-| 100201 | LSASS process access | 15 | HH:MM | victim-windows |
-| 18145 | Windows event log cleared | 12 | HH:MM | victim-windows |
+> *How did the attacker gain initial access? What vulnerability, misconfiguration, or user action enabled entry? Include the specific tool or technique.*
 
-### Detection Gaps
+[Describe the initial access method: e.g., "The attacker exploited the absence of account lockout policy on the SSH service to brute-force valid credentials."]
 
-- [ ] Initial implant download from HTTP server not alerted (HTTP traffic monitoring not configured)
-- [ ] Lateral movement would not be detected without additional victim VMs
+### Execution
 
----
+> *What did the attacker do after gaining access? Walk through each action in technical detail. Reference specific process names, command lines, registry keys, and file paths observed in the telemetry.*
 
-## Containment Actions
+[Step-by-step description of attacker actions with evidence citations]
 
-1. Isolated victim-windows VM (UTM → suspend)
-2. Blocked 192.168.64.30 in victim-windows firewall (post-incident)
-3. Removed persistence: `Remove-ItemProperty HKCU:\...Run -Name updater`
-4. Deleted implant: `Remove-Item C:\Temp\update.exe -Force`
+### Evidence
 
----
+> *Paste key log snippets, Kibana screenshots descriptions, or Sysmon event fields. Focus on the most forensically significant evidence. Synthetic/redacted data acceptable in lab reports.*
 
-## Root Cause Analysis
-
-- **How did the attack succeed?** Windows Defender was disabled for lab purposes
-- **What detection rule should have fired earlier?** DNS query monitoring for new C2 connections
-- **What was the detection latency?** First alert within X seconds of implant execution
-
----
-
-## Lessons Learned
-
-1. **What worked:** Sysmon EventID 10 correctly detected LSASS access before log clearing
-2. **What failed:** HTTP download of implant was not detected
-3. **Rule improvement:** Add Wazuh decoder for Filebeat HTTP access logs to catch implant downloads
-
----
-
-## Remediation Recommendations
-
-- [ ] Enable Windows Defender (or equivalent AV) for realistic detection testing
-- [ ] Add HTTP/S proxy logging to detect C2 download events
-- [ ] Create Wazuh active response rule to isolate host on LSASS access alert
-
----
-
-## Appendix
-
-### Raw Alert JSON (excerpt)
+**Sysmon Event (relevant fields):**
 
 ```json
 {
   "timestamp": "YYYY-MM-DDTHH:MM:SS.mmmZ",
   "rule": {
-    "id": "100201",
-    "level": 15,
-    "description": "LSASS process access — possible credential dumping"
+    "id": "NNNNN",
+    "level": N,
+    "description": "[rule description]"
   },
-  "agent": {
-    "name": "victim-windows",
-    "ip": "192.168.64.20"
-  },
+  "agent": { "name": "[hostname]", "ip": "[192.168.64.XX]" },
   "data": {
     "win": {
+      "system": { "eventID": "N", "channel": "[channel]" },
       "eventdata": {
-        "sourceImage": "C:\\Temp\\update.exe",
-        "targetImage": "C:\\Windows\\System32\\lsass.exe",
-        "grantedAccess": "0x1010"
+        "[relevant field]": "[value]"
       }
     }
   }
 }
 ```
+
+### Root Cause
+
+> *Why was this attack possible? Was it a misconfiguration, missing control, disabled security feature, or design limitation? Be specific.*
+
+[Root cause statement — e.g., "LSASS access was possible because Windows Credential Guard was not enabled on the victim VM. Credential Guard uses virtualization-based security to isolate LSASS in a protected process."]
+
+---
+
+## Indicators of Compromise (IOCs)
+
+> *List every observable artifact left by the attacker. Use these to search for the same attack on other systems. In lab reports, use synthetic values from the 192.168.64.0/24 network.*
+
+| Type | Value | Context |
+|------|-------|---------|
+| IP Address | 192.168.64.XX | [Attacker C2 / Source of brute force / etc.] |
+| File Hash (SHA256) | `[64-character hex string]` | [Malicious binary] |
+| File Path | `[C:\path\to\file.exe]` | [Implant / dump file / tool] |
+| Process Name | `[process.exe]` | [Attacker tool] |
+| Registry Key | `[HKLM\...\key]` | [Persistence mechanism] |
+| Network Port | [port/protocol] | [C2 channel / lateral movement] |
+| User-Agent | `[user agent string]` | [Malicious HTTP request] |
+
+---
+
+## MITRE ATT&CK Mapping
+
+> *Map each attacker action to a specific ATT&CK technique. Include only techniques for which you have direct evidence.*
+
+| Tactic | Technique Name | ID | Evidence Observed |
+|--------|---------------|-----|------------------|
+| [e.g., Credential Access] | [e.g., OS Credential Dumping: LSASS Memory] | [e.g., T1003.001] | [e.g., Sysmon EID 10, sourceImage=procdump64.exe, targetImage=lsass.exe] |
+
+---
+
+## Detection
+
+### Rules That Fired
+
+> *For each Wazuh rule that generated an alert during this incident, record the rule details and the specific event that triggered it.*
+
+| Rule ID | Rule Name | Alert Level | First Fire Time (UTC) | What It Caught |
+|---------|-----------|------------|----------------------|---------------|
+| [NNNNN] | [rule description] | [N/Critical/High] | [HH:MM:SS] | [specific field values that matched] |
+
+### Detection Latency
+
+| Event | Time of Event (UTC) | Time of Alert (UTC) | Latency |
+|-------|--------------------|--------------------|---------|
+| [Attacker action] | [HH:MM:SS] | [HH:MM:SS] | [X seconds] |
+
+### Detection Gaps
+
+> *What did the attacker do that was NOT detected by any rule? Be honest — gaps are the most actionable part of this section.*
+
+- [ ] [Specific attacker action that had no corresponding alert]
+- [ ] [Missing telemetry source — e.g., HTTP proxy logs not collected]
+- [ ] [Rule condition that was too narrow to catch this variant]
+
+---
+
+## Containment & Eradication
+
+> *Ordered steps taken to stop the attack and remove attacker presence. Include timestamps where possible.*
+
+### Containment
+
+1. [Time] — [Action taken to limit spread, e.g., "Isolated victim-windows from the lab network by suspending VM"]
+2. [Time] — [Blocked attacker IP or port]
+3. [Time] — [Killed malicious process]
+
+### Eradication
+
+1. [Action taken to remove attacker artifacts]
+2. [Credential reset procedure]
+3. [Registry key or persistence mechanism removed]
+
+### Eradication Verification
+
+```bash
+# Commands used to verify clean state
+[e.g., Get-Process | Where-Object { $_.Path -like "*Temp*" }]
+[e.g., Get-ScheduledTask | Where-Object { $_.TaskName -like "*update*" }]
+```
+
+---
+
+## Recovery
+
+> *Steps taken to restore systems to normal, verified-clean operation.*
+
+1. [Restore VM from clean snapshot / Re-enable disabled services]
+2. [Reset compromised credentials]
+3. [Re-enable security controls (e.g., Defender) if disabled by attacker]
+4. [Verify Wazuh agent and Sysmon are running and reporting]
+5. [Confirm no persistence mechanisms remain]
+
+---
+
+## Lessons Learned
+
+### What Worked Well
+
+- [e.g., "Sysmon EID 10 fired within 2 seconds of LSASS access — detection latency was excellent"]
+- [e.g., "Wazuh rule level 14 (Critical) immediately surfaced the alert in the Kibana dashboard"]
+
+### What Needs Improvement
+
+- [e.g., "HTTP download of the implant binary was not detected — no network proxy logging configured"]
+- [e.g., "Rule 100005 fired but did not trigger an active response to automatically isolate the host"]
+
+### Action Items
+
+> *Specific, assignable improvements resulting from this incident. Each action should reduce the likelihood or impact of a recurrence.*
+
+| # | Action | Owner | Priority | Target Date |
+|---|--------|-------|----------|------------|
+| 1 | [Specific technical improvement] | [Analyst / Blue Team] | P1 / P2 / P3 | YYYY-MM-DD |
+| 2 | [Rule tuning or new rule] | [Analyst] | P2 | YYYY-MM-DD |
+| 3 | [Process or policy change] | [Team Lead] | P3 | YYYY-MM-DD |
+
+---
+
+## Appendix
+
+### A. Raw Wazuh Alert JSON
+
+> *Paste the most forensically significant alert(s) in full JSON format. Redact any sensitive data (real hostnames, real IPs) in production environments. In this lab, all values are synthetic.*
+
+```json
+{
+  "placeholder": "paste full alert JSON from Kibana → Actions → Inspect → JSON"
+}
+```
+
+### B. Kibana Queries Used
+
+```
+# Query used to find all incident-related alerts
+rule.id:(NNNNN OR NNNNN) AND @timestamp:[YYYY-MM-DDTHH:MM:SSZ TO YYYY-MM-DDTHH:MM:SSZ]
+
+# Query to find all events from attacker source IP
+win.eventdata.sourceIp:192.168.64.XX AND @timestamp:[...]
+```
+
+### C. References
+
+- [MITRE ATT&CK Technique Page](https://attack.mitre.org/techniques/TXXXX/XXX/)
+- [Wazuh Rule Documentation](https://documentation.wazuh.com/current/user-manual/ruleset/)
+- [Related Sigma Rule](../detections/sigma/sigma-NNNNN-*.yml)
+- [ART Test Used](../attack-simulation/atomic-red-team/test-plan.md)

@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-05-11 (Phase 4 complete)
+Last updated: 2026-05-11 (Phase 5 complete)
 
 ## Phase Overview
 
@@ -10,8 +10,8 @@ Last updated: 2026-05-11 (Phase 4 complete)
 | Phase 2 | ✅ Complete | Ansible Automation |
 | Phase 3 | ✅ Complete | Detection Rules |
 | Phase 4 | ✅ Complete | Attack Simulation Scripts |
-| Phase 5 | ⏳ Next | Incident Report Templates |
-| Phase 6 | 🔜 Planned | Runbook (Human-Executable Steps) |
+| Phase 5 | ✅ Complete | Incident Reports (3 forensic reports) |
+| Phase 6 | ⏳ Next | Runbook (Human-Executable Steps) |
 | Phase 7 | 🔜 Planned | Documentation Polish + CI/CD |
 
 ---
@@ -104,19 +104,21 @@ Last updated: 2026-05-11 (Phase 4 complete)
 
 ---
 
-## Phase 5: Incident Report Templates — ⏳ NEXT
+## Phase 5: Incident Reports — ✅ COMPLETE
 
-**Goal:** One complete incident report from a Sliver C2 kill chain execution.
+**Goal:** Professional incident reports documenting attack simulations as real SOC analyst investigations.
 
-**Planned work:**
-- [ ] Fill in `incident-reports/TEMPLATE.md` with real data from a Sliver session
-- [ ] Timeline reconstruction from Kibana
-- [ ] IOC extraction (hashes, IPs, registry keys)
-- [ ] MITRE ATT&CK navigator layer export
+**Delivered:**
+- [x] `incident-reports/TEMPLATE.md` — Full professional IR template (classification, exec summary, UTC timeline, IOCs, MITRE mapping, detection gaps, action items, appendix)
+- [x] `incident-reports/IR-2026-001-credential-dumping.md` — Critical: LSASS dump via procdump (T1003.001); Rule 100005 fired in <1s; root cause: no PPL/Credential Guard; 5 action items
+- [x] `incident-reports/IR-2026-002-c2-beaconing.md` — Critical: Sliver HTTPS implant (T1071.001); Rules 100009/100010/100011; 32 beacons; 16-min window before critical alert; beacon timing analysis
+- [x] `incident-reports/IR-2026-003-brute-force-lateral-movement.md` — High: SSH brute force (487 attempts) + PsExec lateral movement (T1110.001 + T1021.002); SIEM compromise documented; 8 action items
+- [x] `incident-reports/README.md` — Report index, naming convention, severity criteria, SOC workflow diagram, FAANG interview relevance guide
+- [x] DECISIONS.md updated (D22–D25: real documents, sequential numbering, rule ID corrections, honest gap analysis)
 
 ---
 
-## Phase 6: Runbook — 🔜 PLANNED
+## Phase 6: Runbook — ⏳ NEXT
 
 **Goal:** Complete click-by-click instructions for building the lab from scratch on a fresh Mac.
 

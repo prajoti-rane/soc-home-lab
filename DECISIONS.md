@@ -325,3 +325,51 @@ This file records non-obvious architectural decisions made during the design and
 | Fully custom config | Total control | Maintenance burden; likely to miss important event types |
 
 **Rationale:** SwiftOnSecurity's config is the most widely-recognized Sysmon configuration in the security community and is referenced in countless detection engineering guides. Using it as a base signals familiarity with community standards. The script approach (rather than committing a static file) means the config can be regenerated with the latest SwiftOnSecurity version at any time, keeping the lab current with newly discovered attacker techniques.
+
+---
+
+## Decision 22: Incident Reports Written as Real Analyst Documents (Not Templates)
+
+**Date:** 2026-05-11
+**Status:** Final
+
+**Decision:** The three example incident reports are fully written with realistic synthetic data — UTC timestamps, MITRE technique coverage, specific Sysmon field values, Kibana queries, and action items — rather than as annotated templates with placeholder text.
+
+**Rationale:** Placeholder-filled examples ("insert your timeline here") have low portfolio value because they show only that the analyst knows a template exists. Fully written reports show that the analyst can: (1) reconstruct a timeline from log sources, (2) extract and classify IOCs, (3) map observations to ATT&CK techniques with supporting evidence, (4) identify detection gaps, and (5) communicate findings at both executive and technical levels. These are exactly the competencies evaluated in FAANG security engineering interviews. All data is synthetic but internally consistent and plausible.
+
+---
+
+## Decision 23: Report Numbering IR-YYYY-NNN (Not Per-Quarter or Per-Severity)
+
+**Date:** 2026-05-11
+**Status:** Final
+
+**Decision:** Incident reports are numbered sequentially within the year (`IR-2026-001`, `IR-2026-002`, etc.) regardless of severity or scenario type.
+
+**Rationale:** Year-sequential numbering is the most widely used convention in enterprise IR teams (used at Google, Microsoft, and most MSSPs). Per-quarter numbering (`IR-2026-Q2-001`) adds information that becomes stale as the quarter ends and confuses cross-quarter searches. Per-severity numbering (`IR-CRIT-001`) leaks internal severity assessments in external communications. The year-sequential format is immediately recognizable to any security engineer reviewing the portfolio.
+
+---
+
+## Decision 24: Corrected Rule IDs in Incident Reports vs. Task Specification
+
+**Date:** 2026-05-11
+**Status:** Final
+
+**Decision:** Used correct Wazuh rule IDs from Phase 3 in the incident reports rather than the rule IDs listed in the Phase 5 task specification, which contained two errors.
+
+**Errors in task specification:**
+- IR-2026-001 (credential dumping): task said "Wazuh Rule 100003 fired" — 100003 is the RDP brute force rule. Correct rule is **100005** (LSASS ProcessAccess, T1003.001).
+- IR-2026-002 (C2 beaconing): task said "Wazuh Rule 100005 fired" — 100005 is the LSASS rule. Correct rules are **100009/100010/100011** (network connection frequency, T1071.001).
+
+**Rationale:** Incident reports are the most publicly visible artifact in this portfolio — they will be read by security engineers who know Wazuh and MITRE. Using incorrect rule IDs would undermine credibility. The correct rule IDs are derived from the authoritative source: Phase 3 Wazuh XML files in `detections/wazuh-rules/`.
+
+---
+
+## Decision 25: Detection Gap Sections Written Honestly (Including SIEM Compromise Gap)
+
+**Date:** 2026-05-11
+**Status:** Final
+
+**Decision:** Detection gaps in incident reports are documented candidly, including the case where the SIEM itself was compromised (IR-2026-003) and the attacker read active alert data.
+
+**Rationale:** Deliberately revealing architectural weaknesses (e.g., "the SIEM was reachable via password-auth SSH and had world-readable config files") might seem counterproductive in a portfolio. However, security engineering interviews at FAANG specifically probe for this analytical honesty — the ability to identify and articulate your own blind spots is a sign of mature security thinking. A report that only documents successful detections and omits gaps would look incomplete to any experienced reviewer. The action items section shows that gaps are not just acknowledged but addressed.
