@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-05-11 (Phase 5 complete)
+Last updated: 2026-05-12 (Phase 6 complete)
 
 ## Phase Overview
 
@@ -11,8 +11,8 @@ Last updated: 2026-05-11 (Phase 5 complete)
 | Phase 3 | ✅ Complete | Detection Rules |
 | Phase 4 | ✅ Complete | Attack Simulation Scripts |
 | Phase 5 | ✅ Complete | Incident Reports (3 forensic reports) |
-| Phase 6 | ⏳ Next | Runbook (Human-Executable Steps) |
-| Phase 7 | 🔜 Planned | Documentation Polish + CI/CD |
+| Phase 6 | ✅ Complete | Runbook (Human-Executable Steps) |
+| Phase 7 | ⏳ Next | Documentation Polish + CI/CD |
 
 ---
 
@@ -118,18 +118,28 @@ Last updated: 2026-05-11 (Phase 5 complete)
 
 ---
 
-## Phase 6: Runbook — ⏳ NEXT
+## Phase 6: Runbook — ✅ COMPLETE
 
 **Goal:** Complete click-by-click instructions for building the lab from scratch on a fresh Mac.
 
-**Planned work:**
-- [ ] Fill in all 9 runbook step files with exact commands + screenshots
-- [ ] Test end-to-end on a fresh UTM environment
-- [ ] Document all UTM GUI interactions in `MANUAL_STEPS.md`
+**Delivered:**
+- [x] `runbook/README.md` — Overview: 6–8 hour estimate, prereq checklist, dependency graph, conventions, quick-start
+- [x] `runbook/01-prerequisites.md` — Full prereq guide: UTM, Homebrew, tools, SSH keys, ISO downloads, verification checklist
+- [x] `runbook/02-utm-vm-creation.md` — Click-by-click VM creation: full Ubuntu installer selections, Windows OOBE bypass, Kali installer, post-creation SSH verification
+- [x] `runbook/03-network-setup.md` — UTM network modes explained, static IP config for all 3 VMs (netplan/PowerShell/nmcli), full mesh connectivity test, 7 troubleshooting scenarios
+- [x] `runbook/04-wazuh-elk-install.md` — Option A (Wazuh all-in-one) + Option B (Ansible); expected output; custom rule deployment; troubleshooting
+- [x] `runbook/05-sysmon-setup.md` — Sysmon ARM64 install, SwiftOnSecurity config, event ID reference, tamper protection, troubleshooting
+- [x] `runbook/06-agent-deployment.md` — Windows + Linux agent install, ossec.conf event channel config, live event verification, Kibana validation
+- [x] `runbook/07-kali-setup.md` — Sliver C2, ART dependencies, additional tools, WinRM setup, tool verification, network reachability
+- [x] `runbook/08-attack-simulation.md` — Pre-flight checklist, quick-run commands for all 5 scenarios, real-time monitoring guide, screenshot guide, cleanup
+- [x] `runbook/09-detection-validation.md` — validate-detections.sh, wazuh-logtest manual tests, 19-rule validation matrix, Kibana coverage review, Elasticsearch query, rule tuning
+- [x] `runbook/MANUAL_STEPS.md` — Consolidated GUI reference: UTM VM creation, Ubuntu installer selections, Windows OOBE, VirtIO driver, static IP, Defender disable, UTM snapshots, Kibana dashboard setup
+- [x] `scripts/check-prereqs.sh` — PASS/FAIL/WARN prerequisite check (architecture, UTM, tools, SSH keys, disk, RAM, repo, ISOs)
+- [x] DECISIONS.md updated (D26–D30: installer choice, standalone prereq script, VM creation placement, troubleshooting sections, completion checklists)
 
 ---
 
-## Phase 7: Documentation Polish + CI/CD — 🔜 PLANNED
+## Phase 7: Documentation Polish + CI/CD — ⏳ NEXT
 
 **Goal:** Production-quality documentation and passing CI badges.
 

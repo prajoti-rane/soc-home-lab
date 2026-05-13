@@ -373,3 +373,68 @@ This file records non-obvious architectural decisions made during the design and
 **Decision:** Detection gaps in incident reports are documented candidly, including the case where the SIEM itself was compromised (IR-2026-003) and the attacker read active alert data.
 
 **Rationale:** Deliberately revealing architectural weaknesses (e.g., "the SIEM was reachable via password-auth SSH and had world-readable config files") might seem counterproductive in a portfolio. However, security engineering interviews at FAANG specifically probe for this analytical honesty — the ability to identify and articulate your own blind spots is a sign of mature security thinking. A report that only documents successful detections and omits gaps would look incomplete to any experienced reviewer. The action items section shows that gaps are not just acknowledged but addressed.
+
+---
+
+## Decision 26: Wazuh All-in-One Installer as Primary Runbook Path (not vanilla ELK)
+
+**Date:** 2026-05-12
+**Status:** Final
+
+**Decision:** The runbook's primary Wazuh installation path (Option A) uses Wazuh's official `wazuh-install.sh` all-in-one installer rather than separate Elasticsearch + Kibana packages.
+
+**Alternatives considered:**
+
+| Option | Pros | Cons |
+|--------|------|------|
+| **Wazuh all-in-one installer** (chosen) | Handles TLS cert generation, indexer + server + dashboard in 4 commands; Wazuh-maintained; best ARM64 compatibility | Uses Wazuh's OpenSearch fork, not upstream Elastic |
+| Vanilla ELK 8.x + Wazuh manager | Pure upstream stack; familiar to Elastic users | Requires separate xpack.security config, Logstash pipeline, manual Wazuh integration — 3x more steps; ARM64 support less tested |
+| Ansible playbook only | Fully automated repeatable | Requires working lab once first to understand what's happening; masks learning |
+
+**Rationale:** The all-in-one installer generates correct TLS certificates between all components automatically — this is the most error-prone part of a manual ELK setup. For a first build, it removes a class of configuration failures that have nothing to do with detection engineering (the actual skill being demonstrated). Option B (Ansible) is provided for fast rebuilds after the first successful install.
+
+---
+
+## Decision 27: scripts/check-prereqs.sh as Standalone Script
+
+**Date:** 2026-05-12
+**Status:** Final
+
+**Decision:** Prerequisites verification is a standalone bash script (`scripts/check-prereqs.sh`) that checks all requirements and reports PASS/FAIL/WARN, rather than inline verification commands scattered through `runbook/01-prerequisites.md`.
+
+**Rationale:** The script can be re-run at any time (before rebuilding, after a macOS update, before sharing the repo) to confirm the environment is still valid. A list of manual commands in a markdown file requires the reader to remember to run each one and interpret the output themselves. The script is also the entry point for CI — if we add a GitHub Actions workflow that tests on ARM64 runners, the prerequisite check runs automatically. The `exit 1` on failure makes it pipeable into other automation.
+
+---
+
+## Decision 28: click-by-click VM Creation in 02-utm-vm-creation.md, not Only in MANUAL_STEPS.md
+
+**Date:** 2026-05-12
+**Status:** Final
+
+**Decision:** The detailed click-by-click VM creation instructions are written in `runbook/02-utm-vm-creation.md` (the step file the reader follows) rather than deferred entirely to `MANUAL_STEPS.md`.
+
+**Rationale:** `MANUAL_STEPS.md` was designed as a reference for recurring GUI operations (snapshots, ISO eject) and a consolidation point for steps that span multiple phases. Putting the initial VM creation only in MANUAL_STEPS.md would break the sequential flow of the runbook — the reader following Steps 1→2→3 would have to context-switch to MANUAL_STEPS.md for their first major task. Instead, `02-utm-vm-creation.md` has the full instructions and `MANUAL_STEPS.md` has condensed versions as a quick reference.
+
+---
+
+## Decision 29: Troubleshooting Section Required on Every Runbook Step
+
+**Date:** 2026-05-12
+**Status:** Final
+
+**Decision:** Every runbook step file includes a "Troubleshooting" section covering the 4–7 most common failure modes, with diagnostic commands and fixes.
+
+**Alternatives considered:** Leave troubleshooting to the reader (shorter files); centralize troubleshooting in one file.
+
+**Rationale:** The value of a runbook is measured by whether someone can complete the setup without Googling. The three most common failure points in this lab are: (1) network issues blocking SSH or agent connectivity, (2) Wazuh service startup failures due to RAM constraints on 8 GB Macs, and (3) Windows Firewall blocking agent ports. All three are predictable, diagnosable, and fixable in 2–3 commands. Centralizing troubleshooting would require cross-referencing while already frustrated — per-step troubleshooting keeps the fix next to the failure.
+
+---
+
+## Decision 30: Validation Checklist at End of Each Step
+
+**Date:** 2026-05-12
+**Status:** Final
+
+**Decision:** Each runbook step ends with a "Checklist — Step N Complete When:" section listing specific, verifiable conditions.
+
+**Rationale:** "Follow Step 3 then proceed to Step 4" is ambiguous — the reader might proceed while a problem is silently present, causing confusing failures in later steps. The checklist makes the completion condition explicit and verifiable: a specific command returns specific output, or a specific UI element shows a specific state. This catches misconfiguration early when it's easy to fix (before building on top of it), and gives the reader confidence to move forward when everything is green.
